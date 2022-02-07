@@ -1,0 +1,36 @@
+{
+  "name": "faust2wam",
+  "version": "0.0.1",
+  "description": "Build WAMs from Faust DSP",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --target=es2020 --bundle --sourcemap --loader:.css=text --outdir=dist --format=esm",
+    "postbuild": "node postbuild.js",
+    "test": "node faust2wam.js test/poly.dsp test/out -poly"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/webaudiomodules/faust2wam.git"
+  },
+  "keywords": [
+    "faust",
+    "webassembly",
+    "webaudiomodule"
+  ],
+  "author": "Fr0stbyteR",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/webaudiomodules/faust2wam/issues"
+  },
+  "homepage": "https://github.com/webaudiomodules/faust2wam#readme",
+  "devDependencies": {
+    "@shren/faust-ui": "^1.1.1",
+    "@shren/faustwasm": "^0.0.9",
+    "@webaudiomodules/api": "^2.0.0-alpha.3",
+    "@webaudiomodules/sdk": "^0.0.7",
+    "@webaudiomodules/sdk-parammgr": "^0.0.7",
+    "esbuild": "^0.14.20",
+    "typescript": "^4.5.5"
+  }
+}
