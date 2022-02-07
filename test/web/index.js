@@ -11,12 +11,14 @@ const mediaElementSource = audioContext.createMediaElementSource(player);
 	const { initializeWamHost } = await import('../../node_modules/@webaudiomodules/sdk/dist/index.js');
 	const [hostGroupId] = await initializeWamHost(audioContext);
 
-	// Load the WAM
-	const { default: generate } = await import("../../dist/index.js");
+	// Load the WAM generator
+	const { default: generate } = await import('../../dist/index.js');
 
-	const dspResp = await fetch("../rev.dsp");
+	// Load the DSP file
+	const dspResp = await fetch('../rev.dsp');
 
-	const WAM = await generate(await dspResp.text(), "Reverb");
+	// Generate the WAM
+	const WAM = await generate(await dspResp.text(), 'Reverb');
 
 	// Create a new instance of the plugin
 	// You can can optionnally give more options such as the initial state of the plugin
