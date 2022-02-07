@@ -6,7 +6,7 @@
   "scripts": {
     "build": "esbuild src/index.ts --target=es2020 --bundle --sourcemap --loader:.css=text --outdir=dist --format=esm",
     "postbuild": "node postbuild.js",
-    "test": "node faust2wam.js test/poly.dsp test/out -poly"
+    "test": "node faust2wam.js test/rev.dsp test/out"
   },
   "type": "module",
   "repository": {

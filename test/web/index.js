@@ -8,13 +8,13 @@ const mediaElementSource = audioContext.createMediaElementSource(player);
 
 (async () => {
 	// Init WamEnv
-	const { initializeWamHost } = await import('../sdk/index.js');
+	const { initializeWamHost } = await import('../../node_modules/@webaudiomodules/sdk/dist/index.js');
 	const [hostGroupId] = await initializeWamHost(audioContext);
 
 	// Load the WAM
 	const { default: generate } = await import("../../dist/index.js");
 
-	const dspResp = await fetch("./rev.dsp");
+	const dspResp = await fetch("../rev.dsp");
 
 	const WAM = await generate(await dspResp.text(), "Reverb");
 
