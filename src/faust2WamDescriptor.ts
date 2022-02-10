@@ -1,5 +1,5 @@
-import { FaustDspMeta } from "@shren/faustwasm";
-import { WamDescriptor } from "@webaudiomodules/api";
+import type { FaustDspMeta } from "@shren/faustwasm";
+import type { WamDescriptor } from "@webaudiomodules/api";
 
 const faust2WamDescriptor = (dspMeta: FaustDspMeta, effectMeta: FaustDspMeta, poly = false) => {
     /** @type {Record<string, any>} */

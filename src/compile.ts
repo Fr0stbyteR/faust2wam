@@ -1,5 +1,5 @@
 import { instantiateFaustModule, FaustCompiler, FaustMonoDspGenerator, FaustPolyDspGenerator, LibFaust, FaustDspMeta } from "@shren/faustwasm/dist/esm-bundle";
-import type { FaustDspDistribution } from "./type";
+import type { FaustDspDistribution } from "./types";
 
 const compile = async (code: string, name = "FaustDSP", argv = ["-I", "libraries/"], poly = false) => {
     const faustModule = await instantiateFaustModule();

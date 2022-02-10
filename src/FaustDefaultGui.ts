@@ -1,6 +1,6 @@
 import { FaustUI } from "@shren/faust-ui";
-import { FaustAudioWorkletNode } from "@shren/faustwasm";
-import { ParamMgrNode } from "@webaudiomodules/sdk-parammgr";
+import type { FaustAudioWorkletNode } from "@shren/faustwasm";
+import type { ParamMgrNode } from "@webaudiomodules/sdk-parammgr";
 import style from "@shren/faust-ui/dist/esm/index.css";
 
 class FaustDefaultGui extends HTMLElement {

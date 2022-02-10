@@ -3,7 +3,7 @@ import { CompositeAudioNode, ParamMgrNode, ParamMgrFactory } from "@webaudiomodu
 import { WebAudioModule } from "@webaudiomodules/sdk";
 import faust2WamDescriptor from "./faust2WamDescriptor";
 import FaustDefaultGui from "./FaustDefaultGui";
-import type { FaustDspDistribution } from "./type";
+import type { FaustDspDistribution } from "./types";
 
 const generateWam = (faustDsp: FaustDspDistribution) => {
     class FaustCompositeAudioNode extends CompositeAudioNode {
