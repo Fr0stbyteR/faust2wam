@@ -4,6 +4,7 @@ import fs from "fs";
 import url from "url";
 import { cpSync } from "./fileutils.js";
 
+// @ts-ignore
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 /**

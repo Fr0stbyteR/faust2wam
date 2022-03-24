@@ -4,7 +4,7 @@
   "description": "Build WAMs from Faust DSP",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --target=es2020 --bundle --sourcemap --loader:.css=text --outdir=dist --format=esm",
+    "build": "esbuild src/index.ts --target=es2020 --bundle --sourcemap --loader:.css=text --outdir=dist --format=esm --external:fs/promises --external:url --external:crypto",
     "postbuild": "node postbuild.js",
     "test": "node faust2wam.js test/rev.dsp test/out"
   },

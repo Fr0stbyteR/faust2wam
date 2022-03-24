@@ -4,6 +4,7 @@ import fs from "fs";
 import url from "url";
 import { cpSync, rmSync } from "./fileutils.js";
 
+// @ts-ignore
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 const wamSdkParamMgrDistPath = path.join(__dirname, "./node_modules/@webaudiomodules/sdk-parammgr/dist");
@@ -66,11 +67,8 @@ fs.writeFileSync(path.join(faustUiDistDest, "index.d.ts"), faustUiDts);
 
 console.log("FaustUI files copied.")
 
-const faustWasmDistPath = path.join(__dirname, "./node_modules/@shren/faustwasm/dist");
 const faustWasmDistEsmPath = path.join(__dirname, "./node_modules/@shren/faustwasm/dist/esm");
 const faustWasmDistDest = path.join(__dirname, "./assets/wam2/faustwasm");
-
-fs.copyFileSync(path.join(faustWasmDistPath, "index.d.ts"), path.join(faustWasmDistEsmPath, "index.d.ts"));
 
 try {
     rmSync(faustWasmDistDest);

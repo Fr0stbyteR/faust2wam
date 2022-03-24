@@ -1,4 +1,4 @@
-import { FaustMonoDspGenerator, FaustPolyDspGenerator, FaustAudioWorkletNode } from "@shren/faustwasm";
+import { FaustMonoDspGenerator, FaustPolyDspGenerator, FaustAudioWorkletNode } from "@shren/faustwasm/dist/esm-bundle";
 import { CompositeAudioNode, ParamMgrNode, ParamMgrFactory } from "@webaudiomodules/sdk-parammgr";
 import { WebAudioModule } from "@webaudiomodules/sdk";
 import faust2WamDescriptor from "./faust2WamDescriptor";
