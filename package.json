@@ -19,7 +19,7 @@
     "webaudiomodule"
   ],
   "author": "Fr0stbyteR",
-  "license": "MIT",
+  "license": "LGPL-3.0",
   "bugs": {
     "url": "https://github.com/webaudiomodules/faust2wam/issues"
   },
