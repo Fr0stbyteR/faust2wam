@@ -15,6 +15,7 @@ var WebAudioModule = class {
     this._guiModuleUrl = void 0;
     this._descriptorUrl = "./descriptor.json";
     this._descriptor = {
+      identifier: `com.webaudiomodule.default`,
       name: `WebAudioModule_${this.constructor.name}`,
       vendor: "WebAudioModuleVendor",
       description: "",
@@ -45,13 +46,16 @@ var WebAudioModule = class {
     return this._groupId;
   }
   get moduleId() {
-    return this.vendor + this.name;
+    return this.descriptor.identifier;
   }
   get instanceId() {
     return this.moduleId + this._timestamp;
   }
   get descriptor() {
     return this._descriptor;
+  }
+  get identifier() {
+    return this.descriptor.identifier;
   }
   get name() {
     return this.descriptor.name;
@@ -1111,7 +1115,7 @@ var getWamProcessor = (moduleId) => {
   } = ModuleScope;
   class WamProcessor extends AudioWorkletProcessor {
     constructor(options) {
-      super(options);
+      super();
       const {
         groupId,
         moduleId: moduleId2,
@@ -1607,18 +1611,18 @@ var WamNode = class extends AudioWorkletNode {
   async clearEvents() {
     const request = "remove/events";
     const id = this._generateMessageId();
-    return new Promise((resolve) => {
-      const ids = Object.keys(this._pendingEvents);
-      if (ids.length) {
+    const ids = Object.keys(this._pendingEvents);
+    if (ids.length) {
+      return new Promise((resolve) => {
         this._pendingResponses[id] = resolve;
         this.port.postMessage({ id, request });
-      }
-    }).then((clearedIds) => {
-      clearedIds.forEach((clearedId) => {
-        this._pendingEvents[clearedId]();
-        delete this._pendingEvents[clearedId];
+      }).then((clearedIds) => {
+        clearedIds.forEach((clearedId) => {
+          this._pendingEvents[clearedId]();
+          delete this._pendingEvents[clearedId];
+        });
       });
-    });
+    }
   }
   connectEvents(toId, output) {
     const request = "connect/events";
@@ -1719,7 +1723,7 @@ var WamNode = class extends AudioWorkletNode {
 };
 
 // src/apiVersion.js
-var apiVersion_default = "2.0.0-alpha.3";
+var apiVersion_default = "2.0.0-alpha.6";
 
 // src/initializeWamHost.js
 var initializeWamHost = async (audioContext, hostGroupId = `wam-host-${performance.now().toString()}`, hostGroupKey = performance.now().toString()) => {

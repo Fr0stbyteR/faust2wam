@@ -11,8 +11,9 @@ const faust2WamDescriptor = (dspMeta: FaustDspMeta, effectMeta: FaustDspMeta, po
     }
     const { name, author, description, version, keywords, isInstrument, website } = flatMeta;
     return {
-        name: name || "Faust User",
-        vendor: author,
+        identifier: `fr.grame.faust.${(name as string).replace(/\s*/, "").toLowerCase()}`,
+        name: name || "FaustDSP",
+        vendor: author || "Faust User",
         description: description || "",
         version: version || "1.0.0",
         apiVersion: "2.0.0",

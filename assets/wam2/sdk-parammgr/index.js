@@ -26,57 +26,93 @@ var __publicField = (obj, key, value) => {
 var CompositeAudioNode = class extends GainNode {
   constructor() {
     super(...arguments);
+    /**
+     * @type {AudioNode}
+     */
     __publicField(this, "_output");
+    /**
+     * @type {WamNode}
+     */
     __publicField(this, "_wamNode");
   }
   get groupId() {
-    return this._wamNode.groupId;
+    return this.module.groupId;
   }
   get moduleId() {
-    return this._wamNode.moduleId;
+    return this.module.moduleId;
   }
   get instanceId() {
-    return this._wamNode.instanceId;
+    return this.module.instanceId;
   }
   get module() {
     return this._wamNode.module;
   }
+  /**
+   * @param {Parameters<WamNode['addEventListener']>} args
+   */
   addEventListener(...args) {
     return this._wamNode.addEventListener(...args);
   }
+  /**
+   * @param {Parameters<WamNode['removeEventListener']>} args
+   */
   removeEventListener(...args) {
     return this._wamNode.removeEventListener(...args);
   }
+  /**
+   * @param {Parameters<WamNode['dispatchEvent']>} args
+   */
   dispatchEvent(...args) {
     return this._wamNode.dispatchEvent(...args);
   }
+  /**
+   * @param {Parameters<WamNode['getParameterInfo']>} args
+   */
   getParameterInfo(...args) {
     return this._wamNode.getParameterInfo(...args);
   }
+  /**
+   * @param {Parameters<WamNode['getParameterValues']>} args
+   */
   getParameterValues(...args) {
     return this._wamNode.getParameterValues(...args);
   }
+  /**
+   * @param {Parameters<WamNode['setParameterValues']>} args
+   */
   setParameterValues(...args) {
     return this._wamNode.setParameterValues(...args);
   }
   getState() {
     return this._wamNode.getState();
   }
+  /**
+   * @param {Parameters<WamNode['setState']>} args
+   */
   setState(...args) {
     return this._wamNode.setState(...args);
   }
   getCompensationDelay() {
     return this._wamNode.getCompensationDelay();
   }
+  /**
+   * @param {Parameters<WamNode['scheduleEvents']>} args
+   */
   scheduleEvents(...args) {
     return this._wamNode.scheduleEvents(...args);
   }
   clearEvents() {
     return this._wamNode.clearEvents();
   }
+  /**
+   * @param {Parameters<WamNode['connectEvents']>} args
+   */
   connectEvents(...args) {
     return this._wamNode.connectEvents(...args);
   }
+  /**
+   * @param {Parameters<WamNode['disconnectEvents']>} args
+   */
   disconnectEvents(...args) {
     return this._wamNode.disconnectEvents(...args);
   }
@@ -155,13 +191,26 @@ var processor = (moduleId, paramsConfig) => {
     registerProcessor,
     webAudioModules
   } = audioWorkletGlobalScope;
+  const ModuleScope = audioWorkletGlobalScope.webAudioModules.getModuleScope(moduleId);
   const supportSharedArrayBuffer = !!globalThis.SharedArrayBuffer;
   const SharedArrayBuffer = globalThis.SharedArrayBuffer || globalThis.ArrayBuffer;
   const normExp = (x, e) => e === 0 ? x : x ** 1.5 ** -e;
   const normalizeE = (x, min, max, e = 0) => min === 0 && max === 1 ? normExp(x, e) : normExp((x - min) / (max - min) || 0, e);
   const normalize = (x, min, max) => min === 0 && max === 1 ? x : (x - min) / (max - min) || 0;
   const denormalize = (x, min, max) => min === 0 && max === 1 ? x : x * (max - min) + min;
-  const mapValue = (x, eMin, eMax, sMin, sMax, tMin, tMax) => denormalize(normalize(normalize(Math.min(sMax, Math.max(sMin, x)), eMin, eMax), normalize(sMin, eMin, eMax), normalize(sMax, eMin, eMax)), tMin, tMax);
+  const mapValue = (x, eMin, eMax, sMin, sMax, tMin, tMax) => denormalize(
+    normalize(
+      normalize(
+        Math.min(sMax, Math.max(sMin, x)),
+        eMin,
+        eMax
+      ),
+      normalize(sMin, eMin, eMax),
+      normalize(sMax, eMin, eMax)
+    ),
+    tMin,
+    tMax
+  );
   class ParamMgrProcessor extends AudioWorkletProcessor {
     static get parameterDescriptors() {
       return Object.entries(paramsConfig).map(([name, { defaultValue, minValue, maxValue }]) => ({
@@ -171,8 +220,11 @@ var processor = (moduleId, paramsConfig) => {
         maxValue
       }));
     }
+    /**
+     * @param {ParamMgrProcessorOptions} options
+     */
     constructor(options) {
-      super(options);
+      super();
       this.destroyed = false;
       this.supportSharedArrayBuffer = supportSharedArrayBuffer;
       const {
@@ -200,6 +252,9 @@ var processor = (moduleId, paramsConfig) => {
       this.eventQueue = [];
       this.handleEvent = null;
       audioWorkletGlobalScope.webAudioModules.addWam(this);
+      if (!ModuleScope.paramMgrProcessors)
+        ModuleScope.paramMgrProcessors = {};
+      ModuleScope.paramMgrProcessors[this.instanceId] = this;
       this.messagePortRequestId = -1;
       const resolves = {};
       const rejects = {};
@@ -210,6 +265,7 @@ var processor = (moduleId, paramsConfig) => {
         this.port.postMessage({ id, call, args });
       });
       this.handleMessage = ({ data }) => {
+        var _a, _b;
         const { id, call, args, value, error } = data;
         if (call) {
           const r = { id };
@@ -220,21 +276,20 @@ var processor = (moduleId, paramsConfig) => {
           }
           this.port.postMessage(r);
         } else {
-          if (error) {
-            if (rejects[id])
-              rejects[id](error);
-            delete rejects[id];
-            return;
-          }
-          if (resolves[id]) {
-            resolves[id](value);
-            delete resolves[id];
-          }
+          if (error)
+            (_a = rejects[id]) == null ? void 0 : _a.call(rejects, error);
+          else
+            (_b = resolves[id]) == null ? void 0 : _b.call(resolves, value);
+          delete resolves[id];
+          delete rejects[id];
         }
       };
       this.port.start();
       this.port.addEventListener("message", this.handleMessage);
     }
+    /**
+     * @param {ParametersMapping} mapping
+     */
     setParamsMapping(mapping) {
       this.paramsMapping = mapping;
     }
@@ -244,6 +299,9 @@ var processor = (moduleId, paramsConfig) => {
     getCompensationDelay() {
       return 128;
     }
+    /**
+     * @param {string[]} parameterIdQuery
+     */
     getParameterInfo(...parameterIdQuery) {
       if (parameterIdQuery.length === 0)
         parameterIdQuery = Object.keys(this.paramsConfig);
@@ -253,6 +311,10 @@ var processor = (moduleId, paramsConfig) => {
       });
       return parameterInfo;
     }
+    /**
+     * @param {boolean} [normalized]
+     * @param {string[]} parameterIdQuery
+     */
     getParameterValues(normalized, ...parameterIdQuery) {
       if (parameterIdQuery.length === 0)
         parameterIdQuery = Object.keys(this.paramsConfig);
@@ -270,11 +332,17 @@ var processor = (moduleId, paramsConfig) => {
       });
       return parameterValues;
     }
+    /**
+     * @param {WamEvent[]} events
+     */
     scheduleEvents(...events) {
       this.eventQueue.push(...events);
       const { currentTime } = audioWorkletGlobalScope;
       this.eventQueue.sort((a, b) => (a.time || currentTime) - (b.time || currentTime));
     }
+    /**
+     * @param {WamEvent[]} events
+     */
     emitEvents(...events) {
       webAudioModules.emitEvents(this, ...events);
     }
@@ -289,6 +357,13 @@ var processor = (moduleId, paramsConfig) => {
       if (globalThis.Atomics)
         Atomics.store(this.$lock, 0, 0);
     }
+    /**
+     * Main process
+     *
+     * @param {Float32Array[][]} inputs
+     * @param {Float32Array[][]} outputs
+     * @param {Record<string, Float32Array>} parameters
+     */
     process(inputs, outputs, parameters) {
       if (this.destroyed)
         return false;
@@ -344,9 +419,17 @@ var processor = (moduleId, paramsConfig) => {
         this.eventQueue.splice(0, $event);
       return true;
     }
+    /**
+     * @param {string} wamInstanceId
+     * @param {number} [output]
+     */
     connectEvents(wamInstanceId, output) {
       webAudioModules.connectEvents(this.groupId, this.instanceId, wamInstanceId, output);
     }
+    /**
+     * @param {string} [wamInstanceId]
+     * @param {number} [output]
+     */
     disconnectEvents(wamInstanceId, output) {
       if (typeof wamInstanceId === "undefined") {
         webAudioModules.disconnectEvents(this.groupId, this.instanceId);
@@ -356,6 +439,8 @@ var processor = (moduleId, paramsConfig) => {
     }
     destroy() {
       audioWorkletGlobalScope.webAudioModules.removeWam(this);
+      if (ModuleScope.paramMgrProcessors)
+        delete ModuleScope.paramMgrProcessors[this.instanceId];
       this.destroyed = true;
       this.port.close();
     }
@@ -377,6 +462,10 @@ var getWamParameterInfo = (moduleId) => {
   const denormalize = (x, min, max, e = 0) => min === 0 && max === 1 ? denormExp(x, e) : denormExp(x, e) * (max - min) + min;
   const inRange = (x, min, max) => x >= min && x <= max;
   class WamParameterInfo2 {
+    /**
+     * @param {string} id
+     * @param {WamParameterConfiguration} [config]
+     */
     constructor(id, config = {}) {
       let {
         type,
@@ -440,12 +529,27 @@ var getWamParameterInfo = (moduleId) => {
       this.choices = choices;
       this.units = units;
     }
+    /**
+     * Convert a value from the parameter's denormalized range
+     * `[minValue, maxValue]` to normalized range `[0, 1]`.
+     * @param {number} value
+     */
     normalize(value) {
       return normalize(value, this.minValue, this.maxValue, this.exponent);
     }
+    /**
+     * Convert a value from normalized range `[0, 1]` to the
+     * parameter's denormalized range `[minValue, maxValue]`.
+     * @param {number} valueNorm
+     */
     denormalize(valueNorm) {
       return denormalize(valueNorm, this.minValue, this.maxValue, this.exponent);
     }
+    /**
+     * Get a human-readable string representing the given value,
+     * including units if applicable.
+     * @param {number} value
+     */
     valueString(value) {
       if (this.choices)
         return this.choices[value];
@@ -466,15 +570,39 @@ var WamParameterInfo_default = getWamParameterInfo;
 // src/ParamConfigurator.js
 var WamParameterInfo = WamParameterInfo_default();
 var ParamMappingConfigurator = class {
+  /**
+   * @param {ParametersMappingConfiguratorOptions} [options = {}]
+   */
   constructor(options = {}) {
+    /**
+     * @private
+     * @type {Record<string, WamParameterConfiguration>}
+     */
     __publicField(this, "_paramsConfig");
+    /**
+     * @private
+     * @type {InternalParametersDescriptor}
+     */
     __publicField(this, "_internalParamsConfig");
+    /**
+     * @private
+     * @type {ParametersMapping}
+     */
     __publicField(this, "_paramsMapping", {});
     const { paramsConfig, paramsMapping, internalParamsConfig } = options;
     this._paramsConfig = paramsConfig;
     this._paramsMapping = paramsMapping;
     this._internalParamsConfig = internalParamsConfig;
   }
+  /**
+   * Auto-completed `paramsConfig`:
+   *
+   * if no `paramsConfig` is defined while initializing, this will be be filled from the internalParamsConfig;
+   *
+   * if a parameter is not fully configured, the incompleted properties will have the same value as in the internalParamsConfig.
+   *
+   * @type {WamParameterInfoMap}
+   */
   get paramsConfig() {
     const { internalParamsConfig } = this;
     return Object.entries(this._paramsConfig || internalParamsConfig).reduce((configs, [id, config]) => {
@@ -489,6 +617,16 @@ var ParamMappingConfigurator = class {
       return configs;
     }, {});
   }
+  /**
+   * Auto-completed configuration of the `internalParamsConfig`
+   *
+   * Internal Parameters Config contains all the automatable parameters' information.
+   *
+   * An automatable parameter could be a `WebAudio` `AudioParam`
+   * or a config with an `onChange` callback that will be called while the value has been changed.
+   *
+   * @type {InternalParametersDescriptor}
+   */
   get internalParamsConfig() {
     return Object.entries(this._internalParamsConfig || {}).reduce((configs, [name, config]) => {
       if (config instanceof AudioParam)
@@ -505,6 +643,17 @@ var ParamMappingConfigurator = class {
       return configs;
     }, {});
   }
+  /**
+   * Auto-completed `paramsMapping`,
+   * the mapping can be omitted while initialized,
+   * but is useful when an exposed param (in the `paramsConfig`) should automate
+   * several internal params (in the `internalParamsConfig`) or has a different range there.
+   *
+   * If a parameter is present in both `paramsConfig` and `internalParamsConfig` (or the `paramsConfig` is not configured),
+   * a map of this parameter will be there automatically, if not declared explicitly.
+   *
+   * @type {ParametersMapping}
+   */
   get paramsMapping() {
     const declared = this._paramsMapping || {};
     const externalParams = this.paramsConfig;
@@ -532,6 +681,9 @@ var ParamMappingConfigurator = class {
 var MgrAudioParam = class extends AudioParam {
   constructor() {
     super(...arguments);
+    /**
+     * @type {WamParameterInfo}
+     */
     __publicField(this, "_info");
   }
   get exponent() {
@@ -595,6 +747,10 @@ var MgrAudioParam = class extends AudioParam {
 // src/ParamMgrNode.js
 var AudioWorkletNode = globalThis.AudioWorkletNode;
 var ParamMgrNode = class extends AudioWorkletNode {
+  /**
+      * @param {WebAudioModule} module
+      * @param {ParamMgrOptions} options
+      */
   constructor(module, options) {
     super(module.audioContext, module.moduleId, {
       numberOfInputs: 0,
@@ -602,6 +758,9 @@ var ParamMgrNode = class extends AudioWorkletNode {
       parameterData: options.parameterData,
       processorOptions: options.processorOptions
     });
+    /**
+     * @param {string} name
+     */
     __publicField(this, "requestDispatchIParamChange", (name) => {
       const config = this.internalParamsConfig[name];
       if (!("onChange" in config))
@@ -632,6 +791,8 @@ var ParamMgrNode = class extends AudioWorkletNode {
     const { processorOptions, internalParamsConfig } = options;
     this.initialized = false;
     this.module = module;
+    this.instanceId = options.processorOptions.instanceId;
+    this.groupId = options.processorOptions.groupId;
     this.paramsConfig = processorOptions.paramsConfig;
     this.internalParams = processorOptions.internalParams;
     this.internalParamsConfig = internalParamsConfig;
@@ -655,6 +816,7 @@ var ParamMgrNode = class extends AudioWorkletNode {
       });
     };
     this.handleMessage = ({ data }) => {
+      var _a, _b;
       const { id, call, args, value, error } = data;
       if (call) {
         const r = { id };
@@ -665,32 +827,25 @@ var ParamMgrNode = class extends AudioWorkletNode {
         }
         this.port.postMessage(r);
       } else {
-        if (error) {
-          if (rejects[id])
-            rejects[id](error);
-          delete rejects[id];
-          return;
-        }
-        if (resolves[id]) {
-          resolves[id](value);
-          delete resolves[id];
-        }
+        if (error)
+          (_a = rejects[id]) == null ? void 0 : _a.call(rejects, error);
+        else
+          (_b = resolves[id]) == null ? void 0 : _b.call(resolves, value);
+        delete resolves[id];
+        delete rejects[id];
       }
     };
     this.port.start();
     this.port.addEventListener("message", this.handleMessage);
   }
+  /**
+   * @returns {ReadonlyMap<string, MgrAudioParam>}
+   */
   get parameters() {
     return super.parameters;
   }
-  get groupId() {
-    return this.module.groupId;
-  }
   get moduleId() {
     return this.module.moduleId;
-  }
-  get instanceId() {
-    return this.module.instanceId;
   }
   async initialize() {
     const response = await this.call("getBuffer");
@@ -719,6 +874,9 @@ var ParamMgrNode = class extends AudioWorkletNode {
     this.initialized = true;
     return this;
   }
+  /**
+   * @param {ReturnType<ParamMgrCallToProcessor['getBuffer']>} buffer
+   */
   setBuffer({ lock, paramsBuffer }) {
     this.$lock = lock;
     this.$paramsBuffer = paramsBuffer;
@@ -735,6 +893,9 @@ var ParamMgrNode = class extends AudioWorkletNode {
   getParameterValues(normalized, ...parameterIdQuery) {
     return this.call("getParameterValues", normalized, ...parameterIdQuery);
   }
+  /**
+   * @param {WamAutomationEvent} event
+   */
   scheduleAutomation(event) {
     const time = event.time || this.context.currentTime;
     const { id, normalized, value } = event.data;
@@ -753,6 +914,9 @@ var ParamMgrNode = class extends AudioWorkletNode {
         audioParam.setValueAtTime(value, time);
     }
   }
+  /**
+   * @param {WamEvent[]} events
+   */
   scheduleEvents(...events) {
     events.forEach((event) => {
       if (event.type === "wam-automation") {
@@ -761,12 +925,18 @@ var ParamMgrNode = class extends AudioWorkletNode {
     });
     this.call("scheduleEvents", ...events);
   }
+  /**
+   * @param {WamEvent[]} events
+   */
   emitEvents(...events) {
     this.call("emitEvents", ...events);
   }
   clearEvents() {
     this.call("clearEvents");
   }
+  /**
+   * @param {WamEvent} event
+   */
   dispatchWamEvent(event) {
     if (event.type === "wam-automation") {
       this.scheduleAutomation(event);
@@ -774,6 +944,9 @@ var ParamMgrNode = class extends AudioWorkletNode {
       this.dispatchEvent(new CustomEvent(event.type, { detail: event }));
     }
   }
+  /**
+   * @param {WamParameterValueMap} parameterValues
+   */
   async setParameterValues(parameterValues) {
     Object.keys(parameterValues).forEach((parameterId) => {
       const parameterUpdate = parameterValues[parameterId];
@@ -798,10 +971,18 @@ var ParamMgrNode = class extends AudioWorkletNode {
   convertFrameToTime(frame) {
     return frame / this.context.sampleRate;
   }
+  /**
+   * @param {string} name
+   */
   getIParamIndex(name) {
     const i = this.internalParams.indexOf(name);
     return i === -1 ? null : i;
   }
+  /**
+   * @param {string} name
+   * @param {AudioParam | AudioNode} dest
+   * @param {number} index
+   */
   connectIParam(name, dest, index) {
     const offset = 1;
     const i = this.getIParamIndex(name);
@@ -816,6 +997,11 @@ var ParamMgrNode = class extends AudioWorkletNode {
       }
     }
   }
+  /**
+   * @param {string} name
+   * @param {AudioParam | AudioNode} dest
+   * @param {number} index
+   */
   disconnectIParam(name, dest, index) {
     const offset = 1;
     const i = this.getIParamIndex(name);
@@ -866,6 +1052,9 @@ var ParamMgrNode = class extends AudioWorkletNode {
     });
     return values;
   }
+  /**
+   * @param {Record<string, number>} values
+   */
   setParamsValues(values) {
     if (!values)
       return;
@@ -971,9 +1160,17 @@ var ParamMgrNode = class extends AudioWorkletNode {
       return null;
     return param.cancelAndHoldAtTime(cancelTime);
   }
+  /**
+   * @param {string} toId
+   * @param {number} [output]
+   */
   connectEvents(toId, output) {
     this.call("connectEvents", toId, output);
   }
+  /**
+   * @param {string} [toId]
+   * @param {number} [output]
+   */
   disconnectEvents(toId, output) {
     this.call("disconnectEvents", toId, output);
   }
@@ -990,8 +1187,14 @@ var ParamMgrNode = class extends AudioWorkletNode {
 
 // src/ParamMgrFactory.js
 var ParamMgrFactory = class {
+  /**
+   * @param {WebAudioModule} module
+   * @param {ParametersMappingConfiguratorOptions} [optionsIn = {}]
+   */
   static async create(module, optionsIn = {}) {
-    const { audioContext, groupId, moduleId, instanceId } = module;
+    const { audioContext, moduleId } = module;
+    const instanceId = optionsIn.instanceId || module.instanceId;
+    const groupId = optionsIn.groupId || module.groupId;
     const { paramsConfig, paramsMapping, internalParamsConfig } = new ParamMappingConfigurator(optionsIn);
     const initialParamsValue = Object.entries(paramsConfig).reduce((currentParams, [name, { defaultValue }]) => {
       currentParams[name] = defaultValue;
