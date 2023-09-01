@@ -8,8 +8,8 @@ import { cpSync } from "./fileutils.js";
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 /**
- * @param {import("@shren/faustwasm").FaustDspMeta} dspMeta
- * @param {import("@shren/faustwasm").FaustDspMeta | null} effectMeta
+ * @param {import("@grame/faustwasm").FaustDspMeta} dspMeta
+ * @param {import("@grame/faustwasm").FaustDspMeta | null} effectMeta
  * @param {boolean} [poly]
  * @returns {Record<string, any>}
  */
@@ -40,8 +40,8 @@ const faust2WamDescriptor = (dspMeta, effectMeta, poly = false) => {
 };
 
 /**
- * @param {import("@shren/faustwasm").FaustDspMeta} dspMeta
- * @param {import("@shren/faustwasm").FaustDspMeta | null} effectMeta
+ * @param {import("@grame/faustwasm").FaustDspMeta} dspMeta
+ * @param {import("@grame/faustwasm").FaustDspMeta | null} effectMeta
  * @param {string} outputDir
  * @param {boolean} [poly]
  */

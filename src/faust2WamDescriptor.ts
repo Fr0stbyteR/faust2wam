@@ -1,4 +1,4 @@
-import type { FaustDspMeta } from "@shren/faustwasm/dist/esm-bundle";
+import type { FaustDspMeta } from "@grame/faustwasm/dist/esm-bundle";
 import type { WamDescriptor } from "@webaudiomodules/api";
 
 const faust2WamDescriptor = (dspMeta: FaustDspMeta, effectMeta: FaustDspMeta, poly = false) => {

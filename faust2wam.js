@@ -19,7 +19,7 @@ if (poly) argv.splice($poly, 1);
 const [inputFile, outputDir, ...argvFaust] = argv;
 
 (async () => {
-    const { default: faust2wasmFiles } = await import("@shren/faustwasm/src/faust2wasmFiles.js");
+    const { default: faust2wasmFiles } = await import("@grame/faustwasm/src/faust2wasmFiles.js");
     const { dspMeta, effectMeta } = await faust2wasmFiles(inputFile, outputDir, argvFaust, poly);
     await faust2wamFiles(dspMeta, effectMeta, outputDir, poly);
 })();

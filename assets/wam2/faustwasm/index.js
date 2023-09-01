@@ -15,7 +15,10 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target, mod));
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 
 // node_modules/tslib/tslib.js
 var require_tslib = __commonJS({
@@ -846,8 +849,8 @@ var require_jsSha256 = __commonJS({
         return this.hash.digest();
       };
       Sha2563.prototype.digest = function() {
-        return (0, tslib_1.__awaiter)(this, void 0, void 0, function() {
-          return (0, tslib_1.__generator)(this, function(_a) {
+        return tslib_1.__awaiter(this, void 0, void 0, function() {
+          return tslib_1.__generator(this, function(_a) {
             return [2, this.digestSync()];
           });
         });
@@ -875,7 +878,7 @@ var require_build2 = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var tslib_1 = require_tslib();
-    (0, tslib_1.__exportStar)(require_jsSha256(), exports);
+    tslib_1.__exportStar(require_jsSha256(), exports);
   }
 });
 
@@ -885,8 +888,8 @@ var instantiateFaustModuleFromFile = async (jsFile, dataFile = jsFile.replace(/c
   let FaustModule;
   let dataBinary;
   let wasmBinary;
-  const jsCodeHead = /var (.+) = \(\(\) => \{/;
-  if (typeof globalThis.fetch === "function") {
+  const jsCodeHead = /var (.+) = \(/;
+  if (typeof window === "object") {
     let jsCode = await (await fetch(jsFile)).text();
     jsCode = `${jsCode}
 export default ${(_a = jsCode.match(jsCodeHead)) == null ? void 0 : _a[1]};
@@ -1720,7 +1723,6 @@ var FaustDspInstance = class {
     this.fExports.setParamValue($dsp, index, value);
   }
 };
-var FaustDspInstance_default = FaustDspInstance;
 
 // src/FaustWasmInstantiator.ts
 var FaustWasmInstantiator = class {
@@ -1746,7 +1748,7 @@ var FaustWasmInstantiator = class {
         _min_f: Math.min,
         _remainderf: (x, y) => x - Math.round(x / y) * y,
         _powf: Math.pow,
-        _roundf: Math.fround,
+        _roundf: Math.round,
         _sinf: Math.sin,
         _sqrtf: Math.sqrt,
         _tanf: Math.tan,
@@ -1774,7 +1776,7 @@ var FaustWasmInstantiator = class {
         _min_: Math.min,
         _remainder: (x, y) => x - Math.round(x / y) * y,
         _pow: Math.pow,
-        _round: Math.fround,
+        _round: Math.round,
         _sin: Math.sin,
         _sqrt: Math.sqrt,
         _tan: Math.tan,
@@ -1802,13 +1804,15 @@ var FaustWasmInstantiator = class {
       return n;
     };
     const effectSize = effectMeta ? effectMeta.size : 0;
-    let memorySize = pow2limit(effectSize + dspMeta.size * voices + (dspMeta.inputs + dspMeta.outputs * 2) * (ptrSize + bufferSize * sampleSize)) / 65536;
+    let memorySize = pow2limit(
+      effectSize + dspMeta.size * voices + (dspMeta.inputs + dspMeta.outputs * 2) * (ptrSize + bufferSize * sampleSize)
+    ) / 65536;
     memorySize = Math.max(2, memorySize);
     return new WebAssembly.Memory({ initial: memorySize, maximum: memorySize });
   }
   static createMonoDSPInstanceAux(instance, json) {
     const functions = instance.exports;
-    const api = new FaustDspInstance_default(functions);
+    const api = new FaustDspInstance(functions);
     const memory = instance.exports.memory;
     return { memory, api, json };
   }
@@ -1871,12 +1875,12 @@ var FaustWasmInstantiator = class {
     const memory = this.createMemoryAux(voices, voiceFactory, effectFactory);
     const voiceInstance = await WebAssembly.instantiate(voiceFactory.module, this.createWasmImport(memory));
     const voiceFunctions = voiceInstance.exports;
-    const voiceAPI = new FaustDspInstance_default(voiceFunctions);
+    const voiceAPI = new FaustDspInstance(voiceFunctions);
     const mixerAPI = this.createMixerAux(mixerModule, memory);
     if (effectFactory) {
       const effectInstance = await WebAssembly.instantiate(effectFactory.module, this.createWasmImport(memory));
       const effectFunctions = effectInstance.exports;
-      const effectAPI = new FaustDspInstance_default(effectFunctions);
+      const effectAPI = new FaustDspInstance(effectFunctions);
       return {
         memory,
         voices,
@@ -1900,12 +1904,12 @@ var FaustWasmInstantiator = class {
     const memory = this.createMemoryAux(voices, voiceFactory, effectFactory);
     const voiceInstance = new WebAssembly.Instance(voiceFactory.module, this.createWasmImport(memory));
     const voiceFunctions = voiceInstance.exports;
-    const voiceAPI = new FaustDspInstance_default(voiceFunctions);
+    const voiceAPI = new FaustDspInstance(voiceFunctions);
     const mixerAPI = this.createMixerAux(mixerModule, memory);
     if (effectFactory) {
       const effectInstance = new WebAssembly.Instance(effectFactory.module, this.createWasmImport(memory));
       const effectFunctions = effectInstance.exports;
-      const effectAPI = new FaustDspInstance_default(effectFunctions);
+      const effectAPI = new FaustDspInstance(effectFunctions);
       return {
         memory,
         voices,
@@ -2316,7 +2320,13 @@ var FaustPolyWebAudioDsp = class extends FaustBaseWebAudioDsp {
     this.initMemory();
     this.fVoiceTable = [];
     for (let voice = 0; voice < this.fInstance.voices; voice++) {
-      this.fVoiceTable.push(new FaustWebAudioDspVoice(this.fJSONDsp.size * voice, this.fInstance.voiceAPI, this.fInputsItems, this.fPathTable, sampleRate));
+      this.fVoiceTable.push(new FaustWebAudioDspVoice(
+        this.fJSONDsp.size * voice,
+        this.fInstance.voiceAPI,
+        this.fInputsItems,
+        this.fPathTable,
+        sampleRate
+      ));
     }
     if (this.fInstance.effectAPI)
       this.fInstance.effectAPI.init(this.fEffect, sampleRate);
@@ -3283,14 +3293,20 @@ var FaustMonoAudioWorkletNode = class extends FaustAudioWorkletNode {
 };
 var FaustPolyAudioWorkletNode = class extends FaustAudioWorkletNode {
   constructor(context, name, voiceFactory, mixerModule, voices, sampleSize, effectFactory, nodeOptions = {}) {
-    super(context, name, voiceFactory, {
+    super(
+      context,
       name,
       voiceFactory,
-      mixerModule,
-      voices,
-      sampleSize,
-      effectFactory
-    }, nodeOptions);
+      {
+        name,
+        voiceFactory,
+        mixerModule,
+        voices,
+        sampleSize,
+        effectFactory
+      },
+      nodeOptions
+    );
     this.onprocessorerror = (e) => {
       throw e;
     };
@@ -3482,15 +3498,15 @@ const faustData = ${JSON.stringify({
             poly: false
           })};
 // Implementation needed classes of functions
-const ${FaustDspInstance_default.name}_default = ${FaustDspInstance_default.toString()}
+const ${FaustDspInstance.name} = ${FaustDspInstance.toString()}
 const ${FaustBaseWebAudioDsp.name} = ${FaustBaseWebAudioDsp.toString()}
 const ${FaustMonoWebAudioDsp.name} = ${FaustMonoWebAudioDsp.toString()}
 const ${FaustWasmInstantiator_default.name} = ${FaustWasmInstantiator_default.toString()}
 // Put them in dependencies
 const dependencies = {
-    ${FaustBaseWebAudioDsp.name},
-    ${FaustMonoWebAudioDsp.name},
-    ${FaustWasmInstantiator_default.name}
+    FaustBaseWebAudioDsp: ${FaustBaseWebAudioDsp.name},
+    FaustMonoWebAudioDsp: ${FaustMonoWebAudioDsp.name},
+    FaustWasmInstantiator: ${FaustWasmInstantiator_default.name}
 };
 // Generate the actual AudioWorkletProcessor code
 (${FaustAudioWorkletProcessor_default.toString()})(dependencies, faustData);
@@ -3525,16 +3541,16 @@ const faustData = ${JSON.stringify({
           fftOptions
         })};
 // Implementation needed classes of functions
-const ${FaustDspInstance_default.name}_default = ${FaustDspInstance_default.toString()}
+const ${FaustDspInstance.name} = ${FaustDspInstance.toString()}
 const ${FaustBaseWebAudioDsp.name} = ${FaustBaseWebAudioDsp.toString()}
 const ${FaustMonoWebAudioDsp.name} = ${FaustMonoWebAudioDsp.toString()}
 const ${FaustWasmInstantiator_default.name} = ${FaustWasmInstantiator_default.toString()}
 const FFTUtils = ${fftUtils.toString()}
 // Put them in dependencies
 const dependencies = {
-    ${FaustBaseWebAudioDsp.name},
-    ${FaustMonoWebAudioDsp.name},
-    ${FaustWasmInstantiator_default.name},
+    FaustBaseWebAudioDsp: ${FaustBaseWebAudioDsp.name},
+    FaustMonoWebAudioDsp: ${FaustMonoWebAudioDsp.name},
+    FaustWasmInstantiator: ${FaustWasmInstantiator_default.name},
     FFTUtils
 };
 // Generate the actual AudioWorkletProcessor code
@@ -3661,16 +3677,16 @@ const faustData = ${JSON.stringify({
             effectMeta
           })};
 // Implementation needed classes of functions
-const ${FaustDspInstance_default.name}_default = ${FaustDspInstance_default.toString()}
+const ${FaustDspInstance.name} = ${FaustDspInstance.toString()}
 const ${FaustBaseWebAudioDsp.name} = ${FaustBaseWebAudioDsp.toString()}
 const ${FaustPolyWebAudioDsp.name} = ${FaustPolyWebAudioDsp.toString()}
 const ${FaustWebAudioDspVoice.name} = ${FaustWebAudioDspVoice.toString()}
 const ${FaustWasmInstantiator_default.name} = ${FaustWasmInstantiator_default.toString()}
 // Put them in dependencies
 const dependencies = {
-    ${FaustBaseWebAudioDsp.name},
-    ${FaustPolyWebAudioDsp.name},
-    ${FaustWasmInstantiator_default.name}
+    FaustBaseWebAudioDsp: ${FaustBaseWebAudioDsp.name},
+    FaustPolyWebAudioDsp: ${FaustPolyWebAudioDsp.name},
+    FaustWasmInstantiator: ${FaustWasmInstantiator_default.name}
 };
 // Generate the actual AudioWorkletProcessor code
 (${FaustAudioWorkletProcessor_default.toString()})(dependencies, faustData);
@@ -3730,7 +3746,7 @@ export {
   FaustAudioWorkletNode,
   FaustBaseWebAudioDsp,
   FaustCompiler_default as FaustCompiler,
-  FaustDspInstance_default as FaustDspInstance,
+  FaustDspInstance,
   FaustMonoAudioWorkletNode,
   FaustMonoDspGenerator,
   FaustMonoOfflineProcessor,

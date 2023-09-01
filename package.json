@@ -25,8 +25,8 @@
   },
   "homepage": "https://github.com/webaudiomodules/faust2wam#readme",
   "devDependencies": {
+    "@grame/faustwasm": "^0.0.32",
     "@shren/faust-ui": "^1.1.2",
-    "@shren/faustwasm": "^0.0.24",
     "@webaudiomodules/api": "^2.0.0-alpha.6",
     "@webaudiomodules/sdk": "^0.0.11",
     "@webaudiomodules/sdk-parammgr": "^0.0.11",

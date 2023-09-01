@@ -67,7 +67,7 @@ fs.writeFileSync(path.join(faustUiDistDest, "index.d.ts"), faustUiDts);
 
 console.log("FaustUI files copied.")
 
-const faustWasmDistEsmPath = path.join(__dirname, "./node_modules/@shren/faustwasm/dist/esm");
+const faustWasmDistEsmPath = path.join(__dirname, "./node_modules/@grame/faustwasm/dist/esm");
 const faustWasmDistDest = path.join(__dirname, "./assets/wam2/faustwasm");
 
 try {
