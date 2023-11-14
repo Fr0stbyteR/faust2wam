@@ -1,6 +1,6 @@
 {
   "name": "@shren/faust2wam",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Build WAMs from Faust DSP",
   "main": "dist/index.js",
   "scripts": {
