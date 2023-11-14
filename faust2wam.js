@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 //@ts-check
 import process from "process";
 import faust2wamFiles from "./faust2wam-files.js";

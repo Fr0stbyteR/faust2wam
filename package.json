@@ -18,6 +18,9 @@
     "webassembly",
     "webaudiomodule"
   ],
+  "bin": {
+    "faust2wam": "faust2wam.js"
+  },
   "author": "Fr0stbyteR",
   "license": "LGPL-3.0",
   "bugs": {
