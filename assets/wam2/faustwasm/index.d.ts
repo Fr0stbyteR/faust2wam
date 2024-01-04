@@ -1174,6 +1174,24 @@ export interface IFaustMonoDspGenerator {
 	 * @returns the compiled processor or 'null' if failure
 	 */
 	createOfflineProcessor(sampleRate: number, bufferSize: number, factory?: LooseFaustDspFactory, meta?: FaustDspMeta): Promise<IFaustMonoOfflineProcessor | null>;
+	/**
+	 * Get DSP JSON description with its UI and metadata as object.
+	 *
+	 * @return the DSP JSON description as object
+	 */
+	getMeta(): FaustDspMeta;
+	/**
+	 * Get DSP JSON description with its UI and metadata.
+	 *
+	 * @return the DSP JSON description
+	 */
+	getJSON(): string;
+	/**
+	 * Get DSP UI description.
+	 *
+	 * @return the DSP UI description
+	 */
+	getUI(): FaustUIDescriptor;
 }
 export interface IFaustPolyDspGenerator {
 	/**
@@ -1181,7 +1199,7 @@ export interface IFaustPolyDspGenerator {
 	 *
 	 * @param compiler - the Faust compiler
 	 * @param name - the DSP name
-	 * @param dspCode - the DSP code ('dsp_code' can possibly contain an integrated effect)
+	 * @param dspCode - the DSP code ('dspCode' can possibly contain an integrated effect)
 	 * @param args - the compilation parameters
 	 * @param effectCode - optional effect DSP code
 	 * @returns the compiled factory or 'null' if failure
@@ -1197,7 +1215,7 @@ export interface IFaustPolyDspGenerator {
 	 * @param voices - the number of voices
 	 * @param name - AudioWorklet Processor name
 	 * @param voiceFactory - the Faust factory for voices, either obtained with a compiler (createDSPFactory) or loaded from files (loadDSPFactory)
-	 * @param mixerModule - the wasm Mixer module (loaded from 'mixer32.wasm' or 'mixer64.wasm' files)
+	 * @param mixerModule - the wasm Mixer module (loaded from 'mixer32.wasm' or 'mixer64.wasm' files located in the 'faustwasm' package)
 	 * @param effectFactory - the Faust factory for the effect, either obtained with a compiler (createDSPFactory) or loaded from files (loadDSPFactory)
 	 * @param sp - whether to compile a ScriptProcessorNode or an AudioWorkletNode
 	 * @param bufferSize - the buffer size in frames to be used in ScriptProcessorNode only, since AudioWorkletNode always uses 128 frames
@@ -1215,6 +1233,24 @@ export interface IFaustPolyDspGenerator {
 	 * @returns the compiled processor or 'null' if failure
 	 */
 	createOfflineProcessor(sampleRate: number, bufferSize: number, voices: number, voiceFactory?: LooseFaustDspFactory, mixerModule?: WebAssembly.Module, effectFactory?: LooseFaustDspFactory | null): Promise<IFaustPolyOfflineProcessor | null>;
+	/**
+	 * Get DSP JSON description with its UI and metadata as object.
+	 *
+	 * @return the DSP JSON description as object
+	 */
+	getMeta(): FaustDspMeta;
+	/**
+	 * Get DSP JSON description with its UI and metadata.
+	 *
+	 * @return the DSP JSON description
+	 */
+	getJSON(): string;
+	/**
+	 * Get DSP UI description.
+	 *
+	 * @return the DSP UI description
+	 */
+	getUI(): FaustUIDescriptor;
 }
 export declare class FaustMonoDspGenerator implements IFaustMonoDspGenerator {
 	private static gWorkletProcessors;
@@ -1230,6 +1266,9 @@ export declare class FaustMonoDspGenerator implements IFaustMonoDspGenerator {
 		parameterDescriptors: AudioParamDescriptor[];
 	}>;
 	createOfflineProcessor(sampleRate: number, bufferSize: number, factory?: LooseFaustDspFactory): Promise<FaustMonoOfflineProcessor>;
+	getMeta(): any;
+	getJSON(): string;
+	getUI(): any;
 }
 export declare class FaustPolyDspGenerator implements IFaustPolyDspGenerator {
 	private static gWorkletProcessors;
@@ -1247,6 +1286,9 @@ export declare class FaustPolyDspGenerator implements IFaustPolyDspGenerator {
 		parameterDescriptors: AudioParamDescriptor[];
 	}>;
 	createOfflineProcessor(sampleRate: number, bufferSize: number, voices: number, voiceFactory?: LooseFaustDspFactory, mixerModule?: WebAssembly.Module, effectFactory?: LooseFaustDspFactory | null): Promise<FaustPolyOfflineProcessor>;
+	getMeta(): FaustDspMeta;
+	getJSON(): string;
+	getUI(): FaustUIDescriptor;
 }
 
 export {};

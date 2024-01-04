@@ -9,7 +9,7 @@ const faust2WamDescriptor = (dspMeta: FaustDspMeta, effectMeta: FaustDspMeta, po
             flatMeta[key] = metaItem[key];
         }
     }
-    const { name, author, description, version, keywords, isInstrument, website } = flatMeta;
+    const { name, author, description, version, keywords, website } = flatMeta;
     return {
         identifier: `fr.grame.faust.${(name as string).replace(/\s*/, "").toLowerCase()}`,
         name: name || "FaustDSP",
@@ -18,11 +18,15 @@ const faust2WamDescriptor = (dspMeta: FaustDspMeta, effectMeta: FaustDspMeta, po
         version: version || "1.0.0",
         apiVersion: "2.0.0",
         keywords: keywords ? keywords.split(", ") : [],
-        isInstrument: isInstrument === "true",
+        isInstrument: poly,
         website: website || "",
+        hasAudioInput: !!dspMeta.inputs,
+        hasAudioOutput: true,
+        hasMidiInput: true,
+        hasMidiOutput: false,
         faustMeta: {
             poly,
-            effect: !!effectMeta
+            effect: effectMeta
         }
     } as Partial<WamDescriptor> & Record<string, any>;
 };

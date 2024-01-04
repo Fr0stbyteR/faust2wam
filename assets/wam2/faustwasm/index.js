@@ -3619,6 +3619,15 @@ const dependencies = {
     const monoDsp = new FaustMonoWebAudioDsp(instance, sampleRate, sampleSize, bufferSize);
     return new FaustMonoOfflineProcessor(monoDsp, bufferSize);
   }
+  getMeta() {
+    return JSON.parse(this.factory.json);
+  }
+  getJSON() {
+    return JSON.stringify(this.getMeta());
+  }
+  getUI() {
+    return this.getMeta().ui;
+  }
 };
 var FaustMonoDspGenerator = _FaustMonoDspGenerator;
 FaustMonoDspGenerator.gWorkletProcessors = /* @__PURE__ */ new Map();
@@ -3738,6 +3747,36 @@ const dependencies = {
     const sampleSize = voiceMeta.compile_options.match("-double") ? 8 : 4;
     const polyDsp = new FaustPolyWebAudioDsp(instance, sampleRate, sampleSize, bufferSize);
     return new FaustPolyOfflineProcessor(polyDsp, bufferSize);
+  }
+  getMeta() {
+    const o = this.voiceFactory ? JSON.parse(this.voiceFactory.json) : null;
+    const e = this.effectFactory ? JSON.parse(this.effectFactory.json) : null;
+    const r = { ...o };
+    if (e) {
+      r.ui = [{
+        type: "tgroup",
+        label: "Sequencer",
+        items: [
+          { type: "vgroup", label: "Instrument", items: o.ui },
+          { type: "vgroup", label: "Effect", items: e.ui }
+        ]
+      }];
+    } else {
+      r.ui = [{
+        type: "tgroup",
+        label: "Polyphonic",
+        items: [
+          { type: "vgroup", label: "Voices", items: o.ui }
+        ]
+      }];
+    }
+    return r;
+  }
+  getJSON() {
+    return JSON.stringify(this.getMeta());
+  }
+  getUI() {
+    return this.getMeta().ui;
   }
 };
 var FaustPolyDspGenerator = _FaustPolyDspGenerator;
