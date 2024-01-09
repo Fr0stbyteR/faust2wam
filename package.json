@@ -34,6 +34,7 @@
   "dependencies": {
     "@grame/faustwasm": "^0.0.48",
     "@shren/faust-ui": "^1.1.5",
+    "@shren/fftw-js": "^0.1.10",
     "@webaudiomodules/api": "^2.0.0-alpha.6",
     "@webaudiomodules/sdk": "^0.0.11",
     "@webaudiomodules/sdk-parammgr": "^0.0.11"

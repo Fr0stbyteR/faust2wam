@@ -1,7 +1,7 @@
 import type { FaustDspMeta } from "@grame/faustwasm/dist/esm-bundle";
 import type { WamDescriptor } from "@webaudiomodules/api";
 
-const faust2WamDescriptor = (dspMeta: FaustDspMeta, effectMeta: FaustDspMeta, poly = false) => {
+const faust2WamDescriptor = (dspMeta: FaustDspMeta, effectMeta: FaustDspMeta, polyOrFFT: boolean | "fft" = false) => {
     /** @type {Record<string, any>} */
     const flatMeta: Record<string, any> = {};
     for (const metaItem of dspMeta.meta) {
@@ -18,14 +18,15 @@ const faust2WamDescriptor = (dspMeta: FaustDspMeta, effectMeta: FaustDspMeta, po
         version: version || "1.0.0",
         apiVersion: "2.0.0",
         keywords: keywords ? keywords.split(", ") : [],
-        isInstrument: poly,
+        isInstrument: polyOrFFT === true,
         website: website || "",
         hasAudioInput: !!dspMeta.inputs,
         hasAudioOutput: true,
         hasMidiInput: true,
         hasMidiOutput: false,
         faustMeta: {
-            poly,
+            poly: polyOrFFT === true,
+            fft: polyOrFFT === "fft",
             effect: effectMeta
         }
     } as Partial<WamDescriptor> & Record<string, any>;

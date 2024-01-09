@@ -84,11 +84,69 @@ export default class FaustPlugin extends WebAudioModule {
 		if (this.descriptor.faustMeta?.poly) {
 			faustDsp.mixerModule = await WebAssembly.compileStreaming(await fetch(`${this._baseURL}/mixerModule.wasm`));
 		}
+		const fft = !!this.descriptor.faustMeta?.fft;
 		const voices = faustDsp.mixerModule ? 64 : 0;
 
 		/** @type {FaustAudioWorkletNode} */
 		let faustNode;
-		if (voices) {
+		if (fft) {
+			await this.audioContext.audioWorklet?.addModule(`${this._baseURL}/fftw/index.js`);
+			const FFTUtils = class {
+				static get windowFunctions() {
+					return [
+						// blackman
+						(i, N) => {
+							const a0 = 0.42;
+							const a1 = 0.5;
+							const a2 = 0.08;
+							const f = 6.283185307179586 * i / (N - 1);
+							return a0 - a1 * Math.cos(f) + a2 * Math.cos(2 * f);
+						},
+						// hamming
+						(i, N) => 0.54 - 0.46 * Math.cos(6.283185307179586 * i / (N - 1)),
+						// hann
+						(i, N) => 0.5 * (1 - Math.cos(6.283185307179586 * i / (N - 1))),
+						// triangular
+						(i, N) => 1 - Math.abs(2 * (i - 0.5 * (N - 1)) / N)
+					];
+				}
+				static async getFFT() {
+					const { instantiateFFTWModule, FFTW } = globalThis.fftwwasm;
+					const Module = await instantiateFFTWModule();
+					const fftw = new FFTW(Module);
+					return fftw.r2r.FFT1D;
+				}
+				static fftToSignal(f, r, i, b) {
+					const fftSize = f.length;
+					const len = fftSize / 2 + 1;
+					const invFFTSize = 1 / fftSize;
+					for (let j = 0; j < len; j++) {
+						r[j] = f[j] * invFFTSize;
+						if (i) i[j] = (j === 0 || j === len - 1) ? 0 : f[fftSize - j] * invFFTSize;
+						if (b) b[j] = j;
+					}
+				}
+				static signalToFFT(r, i, f) {
+					const len = (r.length - 1) * 2;
+					f.set(r);
+					if (!i) return;
+					for (let j = 1; j < i.length - 1; j++) {
+						f[len - j] = i[j];
+					}
+				}
+				static signalToNoFFT(r, i, f) {
+					f.set(r.subarray(1, r.length));
+					if (i) f.set(i.subarray(0, i.length - 1), r.length - 1);
+				}
+			};
+			const generator = new FaustMonoDspGenerator();
+			faustNode = await generator.createFFTNode(
+				this.audioContext,
+				FFTUtils,
+				this.moduleId + "FaustFFT",
+				{ module: faustDsp.dspModule, json: JSON.stringify(faustDsp.dspMeta) }
+			);
+		} else if (voices) {
 			const generator = new FaustPolyDspGenerator();
 			faustNode = await generator.createNode(
 				this.audioContext,

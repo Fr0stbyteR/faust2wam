@@ -10,10 +10,10 @@ const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 /**
  * @param {import("@grame/faustwasm").FaustDspMeta} dspMeta
  * @param {import("@grame/faustwasm").FaustDspMeta | null} effectMeta
- * @param {boolean} [poly]
+ * @param {boolean | "fft"} [polyOrFFT]
  * @returns {Record<string, any>}
  */
-const faust2WamDescriptor = (dspMeta, effectMeta, poly = false) => {
+const faust2WamDescriptor = (dspMeta, effectMeta, polyOrFFT = false) => {
     /** @type {Record<string, any>} */
     const flatMeta = {};
     for (const metaItem of dspMeta.meta) {
@@ -30,15 +30,16 @@ const faust2WamDescriptor = (dspMeta, effectMeta, poly = false) => {
         version: version || "1.0.0",
         apiVersion: "2.0.0",
         keywords: keywords ? keywords.split(", ") : [],
-        isInstrument: poly,
+        isInstrument: polyOrFFT === true,
         website: website || "",
         hasAudioInput: !!dspMeta.inputs,
         hasAudioOutput: true,
         hasMidiInput: true,
         hasMidiOutput: false,
         faustMeta: {
-            poly,
-            effect: !!effectMeta
+            poly: polyOrFFT === true,
+            fft: polyOrFFT === "fft",
+            effect: effectMeta
         }
     }
 };
@@ -47,9 +48,9 @@ const faust2WamDescriptor = (dspMeta, effectMeta, poly = false) => {
  * @param {import("@grame/faustwasm").FaustDspMeta} dspMeta
  * @param {import("@grame/faustwasm").FaustDspMeta | null} effectMeta
  * @param {string} outputDir
- * @param {boolean} [poly]
+ * @param {boolean | "fft"} [polyOrFFT]
  */
-const faust2wamFiles = async (dspMeta, effectMeta, outputDir, poly = false) => {
+const faust2wamFiles = async (dspMeta, effectMeta, outputDir, polyOrFFT = false) => {
     console.log(`Writing WAM2 assets files.`)
     const assetsPath = path.join(__dirname, "./assets/wam2");
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
@@ -57,7 +58,7 @@ const faust2wamFiles = async (dspMeta, effectMeta, outputDir, poly = false) => {
     console.log(`Writing Descriptor file.`)
     const descriptorPath = path.join(outputDir, "descriptor.json");
     if (fs.existsSync(descriptorPath)) fs.unlinkSync(descriptorPath);
-    fs.writeFileSync(descriptorPath, JSON.stringify(faust2WamDescriptor(dspMeta, effectMeta, poly), null, 4));
+    fs.writeFileSync(descriptorPath, JSON.stringify(faust2WamDescriptor(dspMeta, effectMeta, polyOrFFT), null, 4));
 };
 
 export { faust2WamDescriptor };
