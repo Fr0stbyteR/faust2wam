@@ -39,7 +39,7 @@ const generateWam = (faustDsp: FaustDspDistribution, fft = false) => {
             return super.initialize(state);
         }
         async createAudioNode(initialState: any) {
-            const voices = faustDsp.mixerModule ? 64 : 0;
+            const voices = faustDsp.mixerModule ? +(faustDsp.dspMeta.meta.find(obj => !!obj?.options)?.options.match(/\[nvoices:(\d+)\]/)?.[1] || 64) : 0;
     
             if (fft) {
                 const fftwUrl = URL.createObjectURL(new Blob([fftwjs], { type: "text/javascript" }));

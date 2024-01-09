@@ -85,7 +85,7 @@ export default class FaustPlugin extends WebAudioModule {
 			faustDsp.mixerModule = await WebAssembly.compileStreaming(await fetch(`${this._baseURL}/mixerModule.wasm`));
 		}
 		const fft = !!this.descriptor.faustMeta?.fft;
-		const voices = faustDsp.mixerModule ? 64 : 0;
+		const voices = faustDsp.mixerModule ? +(faustDsp.dspMeta.meta.find(obj => !!obj?.options)?.options.match(/\[nvoices:(\d+)\]/)?.[1] || 64) : 0;
 
 		/** @type {FaustAudioWorkletNode} */
 		let faustNode;

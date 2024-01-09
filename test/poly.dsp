@@ -4,6 +4,7 @@ declare author "Romain Michon";
 declare description "Simple MIDI-controllable flute physical model with physical parameters.";
 declare license "MIT";
 declare copyright "(c)Romain Michon, CCRMA (Stanford University), GRAME";
+declare options "[nvoices:12]";
 
 import("stdfaust.lib");
 
