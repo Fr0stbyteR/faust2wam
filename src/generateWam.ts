@@ -3,9 +3,11 @@ import { CompositeAudioNode, ParamMgrNode, ParamMgrFactory } from "@webaudiomodu
 import { WebAudioModule } from "@webaudiomodules/sdk";
 import faust2WamDescriptor from "./faust2WamDescriptor";
 import FaustDefaultGui from "./FaustDefaultGui";
+import { FFTUtils } from "./FFTUtils";
+import fftwjs from "./fftw.txt";
 import type { FaustDspDistribution } from "./types";
 
-const generateWam = (faustDsp: FaustDspDistribution) => {
+const generateWam = (faustDsp: FaustDspDistribution, fft = false) => {
     class FaustCompositeAudioNode extends CompositeAudioNode {
         _wamNode: ParamMgrNode;
         _output: FaustAudioWorkletNode;
@@ -39,7 +41,17 @@ const generateWam = (faustDsp: FaustDspDistribution) => {
         async createAudioNode(initialState: any) {
             const voices = faustDsp.mixerModule ? 64 : 0;
     
-            if (voices) {
+            if (fft) {
+                const fftwUrl = URL.createObjectURL(new Blob([fftwjs], { type: "text/javascript" }));
+                await this.audioContext.audioWorklet?.addModule(fftwUrl);
+                const generator = new FaustMonoDspGenerator();
+                this.faustNode = await generator.createFFTNode(
+                    this.audioContext,
+                    FFTUtils,
+                    this.moduleId + "FaustFFT",
+                    { module: faustDsp.dspModule, json: JSON.stringify(faustDsp.dspMeta) }
+                );
+            } else if (voices) {
                 const generator = new FaustPolyDspGenerator();
                 this.faustNode = await generator.createNode(
                     this.audioContext,

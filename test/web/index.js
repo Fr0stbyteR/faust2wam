@@ -15,10 +15,10 @@ const mediaElementSource = audioContext.createMediaElementSource(player);
 	const { default: generate } = await import('../../dist/index.js');
 
 	// Load the DSP file
-	const dspResp = await fetch('../rev.dsp');
+	const dspResp = await fetch('../fft-denoise.dsp');
 
 	// Generate the WAM
-	const WAM = await generate(await dspResp.text(), 'Reverb');
+	const WAM = await generate(await dspResp.text(), 'FFT-Denoise', undefined, "fft");
 
 	// Create a new instance of the plugin
 	// You can can optionnally give more options such as the initial state of the plugin
