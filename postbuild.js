@@ -84,3 +84,23 @@ try {
 cpSync(faustWasmDistEsmPath, faustWasmDistDest);
 
 console.log("FaustWasm files copied.")
+
+const fftwDistPath = path.join(__dirname, "./node_modules/@shren/fftw-js/dist/cjs-bundle");
+const fftwDistDest = path.join(__dirname, "./assets/wam2/fftw");
+
+try {
+    rmSync(fftwDistDest);
+} catch (e) {
+    console.warn(e);
+}
+try {
+    fs.mkdirSync(fftwDistDest);
+} catch (e) {
+    console.warn(e);
+}
+
+cpSync(fftwDistPath, fftwDistDest);
+const fftwDts = `export * from "@shren/fftw-js";\n`;
+fs.writeFileSync(path.join(fftwDistDest, "index.d.ts"), fftwDts);
+
+console.log("FFTW files copied.")
