@@ -24,6 +24,11 @@ or
 rm -rf test/out # make sure you are under the faust2wam directory.
 node faust2wam.js test/poly.dsp test/out -poly
 ```
+or
+```bash
+rm -rf test/out # make sure you are under the faust2wam directory.
+node faust2wam.js test/fft-dsp.dsp test/out -fft
+```
 
 #### Dynamically generate WAMs from a Faust DSP code in a browser
 
