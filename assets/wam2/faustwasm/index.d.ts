@@ -1278,7 +1278,7 @@ export declare class FaustPolyDspGenerator implements IFaustPolyDspGenerator {
 	mixerBuffer: Uint8Array;
 	mixerModule: WebAssembly.Module;
 	constructor();
-	compile(compiler: IFaustCompiler, name: string, dspCode: string, args: string, effectCode?: string): Promise<this | null>;
+	compile(compiler: IFaustCompiler, name: string, dspCodeAux: string, args: string, effectCodeAux?: string): Promise<this | null>;
 	createNode<SP extends boolean = false>(context: BaseAudioContext, voices: number, name?: string, voiceFactory?: LooseFaustDspFactory, mixerModule?: WebAssembly.Module, effectFactory?: LooseFaustDspFactory | null, sp?: SP, bufferSize?: number, processorName?: string): Promise<SP extends true ? FaustPolyScriptProcessorNode | null : FaustPolyAudioWorkletNode | null>;
 	createAudioWorkletProcessor(name?: string, voiceFactory?: LooseFaustDspFactory, effectFactory?: LooseFaustDspFactory | null, processorName?: string): Promise<{
 		new (options: AudioWorkletNodeOptions): AudioWorkletProcessor;

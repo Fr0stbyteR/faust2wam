@@ -2,6 +2,8 @@
 const player = document.querySelector('#player');
 /** @type {HTMLDivElement} */
 const mount = document.querySelector('#mount');
+/** @type {HTMLButtonElement} */
+const sendMidi = document.querySelector('#send-midi');
 
 const audioContext = new AudioContext();
 const mediaElementSource = audioContext.createMediaElementSource(player);
@@ -33,4 +35,10 @@ const mediaElementSource = audioContext.createMediaElementSource(player);
 	player.onplay = () => {
 		audioContext.resume(); // audio context must be resumed because browser restrictions
 	};
+
+	sendMidi.onclick = () => {
+		wamInstance.audioNode.scheduleEvents({ type: 'wam-midi', time: audioContext.currentTime, data: { bytes: new Uint8Array([0x90, 74, 100]) } });
+		wamInstance.audioNode.scheduleEvents({ type: 'wam-midi', time: audioContext.currentTime + 0.25, data: { bytes: new Uint8Array([0x80, 74, 100]) } });
+	};
+	
 })();

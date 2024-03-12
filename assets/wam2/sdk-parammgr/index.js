@@ -376,6 +376,7 @@ var processor = (moduleId, paramsConfig) => {
         if (!this.paramsMapping[name])
           return;
         Object.entries(this.paramsMapping[name]).forEach(([targetName, targetMapping]) => {
+          var _a, _b;
           const j = this.internalParams.indexOf(targetName);
           if (j === -1)
             return;
@@ -395,9 +396,9 @@ var processor = (moduleId, paramsConfig) => {
             out = raw;
           }
           if (out.length === 1)
-            outputs[j + outputOffset][0].fill(out[0]);
+            (_a = outputs[j + outputOffset][0]) == null ? void 0 : _a.fill(out[0]);
           else
-            outputs[j + outputOffset][0].set(out);
+            (_b = outputs[j + outputOffset][0]) == null ? void 0 : _b.set(out);
           this.$internalParamsBuffer[j] = out[0];
         });
       });
@@ -800,6 +801,7 @@ var ParamMgrNode = class extends AudioWorkletNode {
     this.paramsUpdateCheckFn = [];
     this.paramsUpdateCheckFnRef = [];
     this.messageRequestId = 0;
+    this.dummyGainNode = module.audioContext.createGain();
     Object.entries(this.getParams()).forEach(([name, param]) => {
       Object.setPrototypeOf(param, MgrAudioParam.prototype);
       param._info = this.paramsConfig[name];
@@ -863,6 +865,7 @@ var ParamMgrNode = class extends AudioWorkletNode {
         } finally {
           config.value = Math.max(0, config.minValue);
           this.connect(config, offset + i);
+          this.connect(this.dummyGainNode, offset + i, 0);
         }
       } else if (config instanceof AudioNode) {
         this.connect(config, offset + i);

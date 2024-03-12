@@ -73,13 +73,14 @@ export default class FaustPlugin extends WebAudioModule {
 	}
 
 	async createAudioNode(initialState) {
-		const dspMeta = await (await fetch(`${this._baseURL}/dspMeta.json`)).json();
-		const dspModule = await WebAssembly.compileStreaming(await fetch(`${this._baseURL}/dspModule.wasm`));
+		const dspName = this.descriptor.name;
+		const dspMeta = await (await fetch(`${this._baseURL}/${dspName}.json`)).json();
+		const dspModule = await WebAssembly.compileStreaming(await fetch(`${this._baseURL}/${dspName}.wasm`));
 		/** @type {FaustDspDistribution} */
 		const faustDsp = { dspMeta, dspModule };
 		if (this.descriptor.faustMeta?.effect) {
-			faustDsp.effectMeta = await (await fetch(`${this._baseURL}/effectMeta.json`)).json();
-			faustDsp.effectModule = await WebAssembly.compileStreaming(await fetch(`${this._baseURL}/effectModule.wasm`));
+			faustDsp.effectMeta = await (await fetch(`${this._baseURL}/${dspName}_effect.json`)).json();
+			faustDsp.effectModule = await WebAssembly.compileStreaming(await fetch(`${this._baseURL}/${dspName}_effect.wasm`));
 		}
 		if (this.descriptor.faustMeta?.poly) {
 			faustDsp.mixerModule = await WebAssembly.compileStreaming(await fetch(`${this._baseURL}/mixerModule.wasm`));

@@ -3636,26 +3636,73 @@ var _FaustPolyDspGenerator = class {
     this.voiceFactory = null;
     this.effectFactory = null;
   }
-  async compile(compiler, name, dspCode, args, effectCode = `
-adapt(1,1) = _; adapt(2,2) = _,_; adapt(1,2) = _ <: _,_; adapt(2,1) = _,_ :> _;
-adaptor(F,G) = adapt(outputs(F),inputs(G));
-dsp_code = environment{${dspCode}};
-process = adaptor(dsp_code.process, dsp_code.effect) : dsp_code.effect;`) {
-    this.voiceFactory = await compiler.createPolyDSPFactory(name, dspCode, args);
-    if (!this.voiceFactory)
-      return null;
+  async compile(compiler, name, dspCodeAux, args, effectCodeAux = `dsp_code = environment{
+                ${dspCodeAux}
+            };
+            process = dsp_code.effect;`) {
     try {
-      this.effectFactory = await compiler.createPolyDSPFactory(name, effectCode, args);
+      this.effectFactory = await compiler.createPolyDSPFactory(name, effectCodeAux, args);
+      if (this.effectFactory) {
+        const effectJSON = JSON.parse(this.effectFactory.json);
+        const dspCode = `
+                    // Voice output is forced to 2, when DSP is stereo or effect has 2 ins or 2 outs,
+                    // so that the effect can process the 2 channels of the voice
+                    adaptOut(1,1,1) = _;
+                    adaptOut(1,1,2) = _ <: _,0;  // The left channel only is kept
+                    adaptOut(1,2,1) = _ <: _,_;
+                    adaptOut(1,2,2) = _ <: _,_;
+                    adaptOut(2,1,1) = _,_;
+                    adaptOut(2,1,2) = _,_;
+                    adaptOut(2,2,1) = _,_;
+                    adaptOut(2,2,2) = _,_;
+                    adaptor(F) = adaptOut(outputs(F),${effectJSON.inputs},${effectJSON.outputs});
+                    dsp_code = environment{
+                        ${dspCodeAux}
+                    };
+                    process = dsp_code.process : adaptor(dsp_code.process);`;
+        const effectCode = `
+                    // Inputs
+                    adaptIn(1,1,1) = _;
+                    adaptIn(1,1,2) = _,_ :> _;  
+                    adaptIn(1,2,1) = _,_;
+                    adaptIn(1,2,2) = _,_;
+                    adaptIn(2,1,1) = _,_ :> _;
+                    adaptIn(2,1,2) = _,_ :> _;
+                    adaptIn(2,2,1) = _,_;
+                    adaptIn(2,2,2) = _,_;
+                    // Outputs
+                    adaptOut(1,1) = _ <: _,0;   // The left channel only is kept
+                    adaptOut(1,2) = _,_;
+                    adaptOut(2,1) = _ <: _,0;   // The left channel only is kept
+                    adaptOut(2,2) = _,_;
+                    adaptorIns(F) = adaptIn(outputs(F),${effectJSON.inputs},${effectJSON.outputs});
+                    adaptorOuts = adaptOut(${effectJSON.inputs},${effectJSON.outputs});
+                    dsp_code = environment{
+                        ${dspCodeAux}
+                    };
+                    process = adaptorIns(dsp_code.process) : dsp_code.effect : adaptorOuts;`;
+        this.voiceFactory = await compiler.createPolyDSPFactory(name, dspCode, args);
+        try {
+          this.effectFactory = await compiler.createPolyDSPFactory(name, effectCode, args + " -inpl");
+        } catch (e) {
+          console.warn(e);
+        }
+      }
     } catch (e) {
       console.warn(e);
+      this.voiceFactory = await compiler.createPolyDSPFactory(name, dspCodeAux, args);
     }
-    this.name = name;
-    const voiceMeta = JSON.parse(this.voiceFactory.json);
-    const isDouble = voiceMeta.compile_options.match("-double");
-    const { mixerBuffer, mixerModule } = await compiler.getAsyncInternalMixerModule(!!isDouble);
-    this.mixerBuffer = mixerBuffer;
-    this.mixerModule = mixerModule;
-    return this;
+    if (this.voiceFactory) {
+      this.name = name;
+      const voiceMeta = JSON.parse(this.voiceFactory.json);
+      const isDouble = voiceMeta.compile_options.match("-double");
+      const { mixerBuffer, mixerModule } = await compiler.getAsyncInternalMixerModule(!!isDouble);
+      this.mixerBuffer = mixerBuffer;
+      this.mixerModule = mixerModule;
+      return this;
+    } else {
+      return null;
+    }
   }
   async createNode(context, voices, name = this.name, voiceFactory = this.voiceFactory, mixerModule = this.mixerModule, effectFactory = this.effectFactory, sp = false, bufferSize = 1024, processorName = ((voiceFactory == null ? void 0 : voiceFactory.shaKey) || "") + ((effectFactory == null ? void 0 : effectFactory.shaKey) || "") || `${name}_poly`) {
     var _a, _b;
