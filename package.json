@@ -33,7 +33,7 @@
     "typescript": "^4.9.5"
   },
   "dependencies": {
-    "@grame/faustwasm": "^0.0.63",
+    "@grame/faustwasm": "^0.0.64",
     "@shren/faust-ui": "^1.1.5",
     "@shren/fftw-js": "^0.1.10",
     "@webaudiomodules/api": "^2.0.0-alpha.6",
