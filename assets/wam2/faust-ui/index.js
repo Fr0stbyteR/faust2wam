@@ -133,8 +133,14 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class FaustUI {
+  /**
+   * Calculate incoming UI's layout, bind window events
+   */
   constructor(options) {
     this.componentMap = {};
+    /**
+     * Can be overriden, called by components when its value is changed by user.
+     */
     this.paramChangeByUI = (path, value) => {
       if (!this.hostWindow)
         return;
@@ -164,6 +170,9 @@ class FaustUI {
       });
     }
   }
+  /**
+   * Render the UI to DOM root
+   */
   mount() {
     this.componentMap = {};
     this.DOMroot.innerHTML = "";
@@ -187,28 +196,43 @@ class FaustUI {
     this.DOMroot.appendChild(this.faustUIRoot.container);
     this.faustUIRoot.componentDidMount();
   }
+  /**
+   * This method should be called by components to register itself to map.
+   */
   register(path, item) {
     if (this.componentMap[path])
       this.componentMap[path].push(item);
     else
       this.componentMap[path] = [item];
   }
+  /**
+   * Notify the component to change its value.
+   */
   paramChangeByDSP(path, value) {
     if (this.componentMap[path])
       this.componentMap[path].forEach((item) => item.setState({ value }));
   }
+  /**
+   * Calculate UI layout in grid then calculate grid size.
+   */
   calc() {
     const { items, layout } = _layout_Layout__WEBPACK_IMPORTED_MODULE_0__["default"].calc(this.ui);
     this._ui = items;
     this._layout = layout;
     this.calcGrid();
   }
+  /**
+   * Calculate grid size by DOM root size and layout size in grids.
+   */
   calcGrid() {
     const { width, height } = this.DOMroot.getBoundingClientRect();
     const grid = Math.max(40, Math.min(width / this._layout.width, height / this._layout.height));
     this.grid = grid;
     return grid;
   }
+  /**
+   * Force recalculate grid size and resize UI
+   */
   resize() {
     if (!this.faustUIRoot)
       return;
@@ -266,10 +290,22 @@ var __spreadValues = (a, b) => {
 };
 
 class AbstractComponent extends _shren_typed_event_emitter__WEBPACK_IMPORTED_MODULE_0__["default"] {
+  /**
+   * Initiate default state with incoming state.
+   */
   constructor(props) {
     super();
+    /**
+     * Frame count in order to reduce frame rate
+     */
     this.$frame = 0;
+    /**
+     * Frame reducing factor, 1 = render at every browser rendering tick, 2 will skip one every two ticks.
+     */
     this.frameReduce = 1;
+    /**
+     * `requestAnimationFrame` callback
+     */
     this.raf = () => {
       this.$frame++;
       if (this.$frame % this.frameReduce !== 0) {
@@ -280,12 +316,18 @@ class AbstractComponent extends _shren_typed_event_emitter__WEBPACK_IMPORTED_MOD
       this.tasks.forEach((f) => f());
       this.tasks = [];
     };
+    /**
+     * tasks to execute in next redering tick
+     */
     this.tasks = [];
     this.state = __spreadValues(__spreadValues({}, this.defaultProps), props);
   }
   get defaultProps() {
     return this.constructor.defaultProps;
   }
+  /**
+   * set internal state and fire events for UI parts subscribed
+   */
   setState(newState) {
     let shouldUpdate = false;
     for (const stateKey in newState) {
@@ -299,6 +341,10 @@ class AbstractComponent extends _shren_typed_event_emitter__WEBPACK_IMPORTED_MOD
         this.emit(stateKey, this.state[stateKey]);
     }
   }
+  /**
+   * Use this method to request a new rendering
+   * schedule what you need to do in next render tick in `raf` callback
+   */
   schedule(func) {
     if (this.tasks.indexOf(func) === -1)
       this.tasks.push(func);
@@ -307,6 +353,9 @@ class AbstractComponent extends _shren_typed_event_emitter__WEBPACK_IMPORTED_MOD
     this.$raf = window.requestAnimationFrame(this.raf);
   }
 }
+/**
+ * The default state of the component.
+ */
 AbstractComponent.defaultProps = {};
 
 
@@ -345,9 +394,16 @@ var __spreadValues = (a, b) => {
 
 
 const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
+  /**
+   * Initiate default state with incoming state.
+   */
   constructor(props) {
     super(props);
     this.frameReduce = 3;
+    /**
+     * Default DOM event listeners, unify mousedown and touchstart events
+     * For mouse or touch events, please use `handlePointerDown` `handlePointerUp` `handlePointerDrag` callbacks
+     */
     this.handleKeyDown = (e) => {
     };
     this.handleKeyUp = (e) => {
@@ -431,6 +487,9 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
     if (this.state.emitter)
       this.state.emitter.register(this.state.address, this);
   }
+  /**
+   * Get a nearest valid number
+   */
   toValidNumber(value) {
     const { min, max, step } = this.state;
     if (typeof min !== "number" || typeof max !== "number")
@@ -440,6 +499,9 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
       return v;
     return min + Math.floor((v - min) / step) * step;
   }
+  /**
+   * Use this method if you want the emitter to send value to DSP
+   */
   setValue(valueIn) {
     const value = this.toValidNumber(valueIn);
     const changed = this.setState({ value });
@@ -447,10 +509,18 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
       this.change(value);
     return changed;
   }
+  /**
+   * Send value to DSP
+   */
   change(valueIn) {
     if (this.state.emitter)
       this.state.emitter.paramChangeByUI(this.state.address, typeof valueIn === "number" ? valueIn : this.state.value);
   }
+  /**
+   * set internal state and fire events for UI parts subscribed
+   * This will not send anything to DSP
+   * @returns is state updated
+   */
   setState(newState) {
     let shouldUpdate = false;
     for (const key in newState) {
@@ -458,7 +528,7 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
       const stateValue = newState[stateKey];
       if (stateKey === "style") {
         for (const styleKey in newState.style) {
-          if (styleKey in this.state.style && this.state.style[styleKey] !== newState.style[styleKey]) {
+          if (styleKey in this.state.style) {
             this.state.style[styleKey] = newState.style[styleKey];
             shouldUpdate = true;
           }
@@ -473,6 +543,10 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
     }
     return shouldUpdate;
   }
+  /**
+   * Create container with class name
+   * override it with `super.componentWillMount();`
+   */
   componentWillMount() {
     this.container = document.createElement("div");
     this.container.className = ["faust-ui-component", "faust-ui-component-" + this.className].join(" ");
@@ -486,6 +560,9 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
     this.labelCtx = this.labelCanvas.getContext("2d");
     return this;
   }
+  /**
+   * Here append all child DOM to container
+   */
   mount() {
     this.label.appendChild(this.labelCanvas);
     return this;
@@ -495,13 +572,17 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
     const color = this.state.style.labelcolor;
     const ctx = this.labelCtx;
     const canvas = this.labelCanvas;
+    const ratio = window.devicePixelRatio || 1;
     let { width, height } = this.label.getBoundingClientRect();
     if (!width || !height)
       return this;
     width = Math.floor(width);
     height = Math.floor(height);
-    canvas.height = height;
-    canvas.width = width;
+    const scaledWidth = Math.floor(width * ratio);
+    const scaledHeight = Math.floor(height * ratio);
+    canvas.width = scaledWidth;
+    canvas.height = scaledHeight;
+    ctx.scale(ratio, ratio);
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = color;
     ctx.textBaseline = "middle";
@@ -510,6 +591,9 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
     ctx.fillText(label, align === "left" ? 0 : align === "right" ? width : width / 2, height / 2, width);
     return this;
   }
+  /**
+   * will call this method when mounted
+   */
   componentDidMount() {
     const handleResize = () => {
       const { grid, left, top, width, height } = this.state.style;
@@ -524,6 +608,9 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
     handleResize();
     return this;
   }
+  /**
+   * Count steps in range min-max with step
+   */
   get stepsCount() {
     const { type, max, min, step, enums } = this.state;
     const maxSteps = type === "enum" ? enums.length : type === "int" ? max - min : (max - min) / step;
@@ -536,6 +623,9 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
     }
     return maxSteps;
   }
+  /**
+   * Normalized value between 0 - 1.
+   */
   get distance() {
     const { type, max, min, value, enums, scale } = this.state;
     return _AbstractItem.getDistance({ type, max, min, value, enums, scale });
@@ -547,6 +637,9 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
     const v = scale === "exp" ? (0,_utils__WEBPACK_IMPORTED_MODULE_1__.normLog)(value, min, max) : scale === "log" ? (0,_utils__WEBPACK_IMPORTED_MODULE_1__.normExp)(value, min, max) : value;
     return (0,_utils__WEBPACK_IMPORTED_MODULE_1__.normalize)(v, min, max);
   }
+  /**
+   * Mousemove pixels for each step
+   */
   get stepRange() {
     const full = 100;
     const stepsCount = this.stepsCount;
@@ -554,6 +647,9 @@ const _AbstractItem = class extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_
   }
 };
 let AbstractItem = _AbstractItem;
+/**
+ * The default state of the component.
+ */
 AbstractItem.defaultProps = {
   value: 0,
   active: true,
@@ -715,17 +811,19 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _HSlider__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./HSlider */ "./src/components/HSlider.ts");
 /* harmony import */ var _VSlider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./VSlider */ "./src/components/VSlider.ts");
 /* harmony import */ var _Nentry__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./Nentry */ "./src/components/Nentry.ts");
-/* harmony import */ var _Button__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./Button */ "./src/components/Button.ts");
-/* harmony import */ var _Checkbox__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./Checkbox */ "./src/components/Checkbox.ts");
-/* harmony import */ var _Knob__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./Knob */ "./src/components/Knob.ts");
-/* harmony import */ var _Menu__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./Menu */ "./src/components/Menu.ts");
-/* harmony import */ var _Radio__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./Radio */ "./src/components/Radio.ts");
-/* harmony import */ var _Led__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./Led */ "./src/components/Led.ts");
-/* harmony import */ var _Numerical__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./Numerical */ "./src/components/Numerical.ts");
-/* harmony import */ var _HBargraph__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./HBargraph */ "./src/components/HBargraph.ts");
-/* harmony import */ var _VBargraph__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./VBargraph */ "./src/components/VBargraph.ts");
-/* harmony import */ var _layout_Layout__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ../layout/Layout */ "./src/layout/Layout.ts");
-/* harmony import */ var _Group_scss__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./Group.scss */ "./src/components/Group.scss");
+/* harmony import */ var _Soundfile__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./Soundfile */ "./src/components/Soundfile.ts");
+/* harmony import */ var _Button__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./Button */ "./src/components/Button.ts");
+/* harmony import */ var _Checkbox__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./Checkbox */ "./src/components/Checkbox.ts");
+/* harmony import */ var _Knob__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./Knob */ "./src/components/Knob.ts");
+/* harmony import */ var _Menu__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./Menu */ "./src/components/Menu.ts");
+/* harmony import */ var _Radio__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./Radio */ "./src/components/Radio.ts");
+/* harmony import */ var _Led__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./Led */ "./src/components/Led.ts");
+/* harmony import */ var _Numerical__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./Numerical */ "./src/components/Numerical.ts");
+/* harmony import */ var _HBargraph__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./HBargraph */ "./src/components/HBargraph.ts");
+/* harmony import */ var _VBargraph__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./VBargraph */ "./src/components/VBargraph.ts");
+/* harmony import */ var _layout_Layout__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ../layout/Layout */ "./src/layout/Layout.ts");
+/* harmony import */ var _Group_scss__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./Group.scss */ "./src/components/Group.scss");
+
 
 
 
@@ -748,7 +846,8 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
       this.children = [];
       const { style, type, items, emitter, isRoot } = this.state;
       const { grid, left, top, width, height } = style;
-      this.label.style.height = `${grid * 0.3}px`;
+      if (!this.state.isRoot)
+        this.label.style.height = `${grid * 0.3}px`;
       this.container.style.left = `${left * grid}px`;
       this.container.style.top = `${top * grid}px`;
       this.container.style.width = `${width * grid}px`;
@@ -825,7 +924,7 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
     return { metaObject };
   }
   static getComponent(item, emitter, grid) {
-    const type = _layout_Layout__WEBPACK_IMPORTED_MODULE_13__["default"].predictType(item);
+    const type = _layout_Layout__WEBPACK_IMPORTED_MODULE_14__["default"].predictType(item);
     if (type.endsWith("group")) {
       const { label: label2, items, type: type2, layout: layout2 } = item;
       const props2 = {
@@ -870,29 +969,31 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
       value: "init" in item ? +item.init || 0 : 0
     };
     if (type === "button")
-      return new _Button__WEBPACK_IMPORTED_MODULE_4__["default"](props);
+      return new _Button__WEBPACK_IMPORTED_MODULE_5__["default"](props);
     if (type === "checkbox")
-      return new _Checkbox__WEBPACK_IMPORTED_MODULE_5__["default"](props);
+      return new _Checkbox__WEBPACK_IMPORTED_MODULE_6__["default"](props);
     if (type === "nentry")
       return new _Nentry__WEBPACK_IMPORTED_MODULE_3__["default"](props);
+    if (type === "soundfile")
+      return new _Soundfile__WEBPACK_IMPORTED_MODULE_4__["default"](props);
     if (type === "knob")
-      return new _Knob__WEBPACK_IMPORTED_MODULE_6__["default"](props);
+      return new _Knob__WEBPACK_IMPORTED_MODULE_7__["default"](props);
     if (type === "menu")
-      return new _Menu__WEBPACK_IMPORTED_MODULE_7__["default"](props);
+      return new _Menu__WEBPACK_IMPORTED_MODULE_8__["default"](props);
     if (type === "radio")
-      return new _Radio__WEBPACK_IMPORTED_MODULE_8__["default"](props);
+      return new _Radio__WEBPACK_IMPORTED_MODULE_9__["default"](props);
     if (type === "hslider")
       return new _HSlider__WEBPACK_IMPORTED_MODULE_1__["default"](props);
     if (type === "vslider")
       return new _VSlider__WEBPACK_IMPORTED_MODULE_2__["default"](props);
     if (type === "hbargraph")
-      return new _HBargraph__WEBPACK_IMPORTED_MODULE_11__["default"](props);
+      return new _HBargraph__WEBPACK_IMPORTED_MODULE_12__["default"](props);
     if (type === "vbargraph")
-      return new _VBargraph__WEBPACK_IMPORTED_MODULE_12__["default"](props);
+      return new _VBargraph__WEBPACK_IMPORTED_MODULE_13__["default"](props);
     if (type === "numerical")
-      return new _Numerical__WEBPACK_IMPORTED_MODULE_10__["default"](props);
+      return new _Numerical__WEBPACK_IMPORTED_MODULE_11__["default"](props);
     if (type === "led")
-      return new _Led__WEBPACK_IMPORTED_MODULE_9__["default"](props);
+      return new _Led__WEBPACK_IMPORTED_MODULE_10__["default"](props);
     return null;
   }
   setState(newState) {
@@ -903,7 +1004,7 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
       if (stateKey === "style") {
         for (const key2 in newState.style) {
           const styleKey = key2;
-          if (styleKey in this.state.style && this.state.style[styleKey] !== newState.style[styleKey]) {
+          if (styleKey in this.state.style) {
             this.state.style[styleKey] = newState.style[styleKey];
             shouldUpdate = true;
           }
@@ -921,26 +1022,34 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
     this.container = document.createElement("div");
     this.tabs = document.createElement("div");
     this.tabs.className = "faust-ui-tgroup-tabs";
-    this.label = document.createElement("div");
-    this.label.className = "faust-ui-group-label";
-    this.labelCanvas = document.createElement("canvas");
-    this.labelCtx = this.labelCanvas.getContext("2d");
+    if (!this.state.isRoot) {
+      this.label = document.createElement("div");
+      this.label.className = "faust-ui-group-label";
+      this.labelCanvas = document.createElement("canvas");
+      this.labelCtx = this.labelCanvas.getContext("2d");
+    }
     this.updateUI();
     this.children.forEach((item) => item.componentWillMount());
     return this;
   }
   paintLabel() {
+    if (this.state.isRoot)
+      return this;
     const label = this.state.label;
     const color = this.state.style.labelcolor;
     const ctx = this.labelCtx;
     const canvas = this.labelCanvas;
+    const ratio = window.devicePixelRatio || 1;
     let { width, height } = this.label.getBoundingClientRect();
     if (!width || !height)
       return this;
     width = Math.floor(width);
     height = Math.floor(height);
-    canvas.height = height;
-    canvas.width = width;
+    const scaledWidth = Math.floor(width * ratio);
+    const scaledHeight = Math.floor(height * ratio);
+    canvas.width = scaledWidth;
+    canvas.height = scaledHeight;
+    ctx.scale(ratio, ratio);
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = color;
     ctx.textBaseline = "middle";
@@ -950,8 +1059,10 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
     return this;
   }
   mount() {
-    this.label.appendChild(this.labelCanvas);
-    this.container.appendChild(this.label);
+    if (!this.state.isRoot) {
+      this.label.appendChild(this.labelCanvas);
+      this.container.appendChild(this.label);
+    }
     if (this.tabs.children.length)
       this.container.appendChild(this.tabs);
     this.children.forEach((item) => {
@@ -963,7 +1074,8 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
   componentDidMount() {
     const handleResize = () => {
       const { grid, left, top, width, height } = this.state.style;
-      this.label.style.height = `${grid * 0.3}px`;
+      if (!this.state.isRoot)
+        this.label.style.height = `${grid * 0.3}px`;
       this.container.style.width = `${width * grid}px`;
       this.container.style.height = `${height * grid}px`;
       this.container.style.left = `${left * grid}px`;
@@ -1036,11 +1148,15 @@ class HBargraph extends _VBargraph__WEBPACK_IMPORTED_MODULE_1__["default"] {
       const { type, max, min, enums, scale, value } = this.state;
       const ctx = this.ctx;
       const canvas = this.canvas;
+      const ratio = window.devicePixelRatio || 1;
       let { width, height } = this.canvasDiv.getBoundingClientRect();
       width = Math.floor(width);
       height = Math.floor(height);
-      canvas.width = width;
-      canvas.height = height;
+      const scaledWidth = Math.floor(width * ratio);
+      const scaledHeight = Math.floor(height * ratio);
+      canvas.width = scaledWidth;
+      canvas.height = scaledHeight;
+      ctx.scale(ratio, ratio);
       const drawWidth = width * 0.9;
       const drawHeight = barwidth || Math.min(height / 3, drawWidth * 0.05);
       const left = width * 0.05;
@@ -1148,11 +1264,15 @@ class HSlider extends _VSlider__WEBPACK_IMPORTED_MODULE_1__["default"] {
       const ctx = this.ctx;
       const canvas = this.canvas;
       const distance = this.distance;
+      const ratio = window.devicePixelRatio || 1;
       let { width, height } = this.canvasDiv.getBoundingClientRect();
       width = Math.floor(width);
       height = Math.floor(height);
-      canvas.width = width;
-      canvas.height = height;
+      const scaledWidth = Math.floor(width * ratio);
+      const scaledHeight = Math.floor(height * ratio);
+      canvas.width = scaledWidth;
+      canvas.height = scaledHeight;
+      ctx.scale(ratio, ratio);
       const drawWidth = width * 0.9;
       const drawHeight = sliderwidth || Math.min(height / 3, drawWidth * 0.05);
       const left = width * 0.05;
@@ -1236,11 +1356,15 @@ class Knob extends _AbstractItem__WEBPACK_IMPORTED_MODULE_0__["default"] {
       const ctx = this.ctx;
       const canvas = this.canvas;
       const distance = this.distance;
+      const ratio = window.devicePixelRatio || 1;
       let { width, height } = this.canvas.getBoundingClientRect();
       width = Math.floor(width);
       height = Math.floor(height);
-      canvas.width = width;
-      canvas.height = height;
+      const scaledWidth = Math.floor(width * ratio);
+      const scaledHeight = Math.floor(height * ratio);
+      canvas.width = scaledWidth;
+      canvas.height = scaledHeight;
+      ctx.scale(ratio, ratio);
       const start = 5 / 8 * Math.PI;
       const end = 19 / 8 * Math.PI;
       const valPos = start + (0,_utils__WEBPACK_IMPORTED_MODULE_1__.toRad)(distance * 315);
@@ -1422,9 +1546,15 @@ class Led extends _AbstractItem__WEBPACK_IMPORTED_MODULE_0__["default"] {
       const { shape, ledbgcolor, coldcolor, warmcolor, hotcolor, overloadcolor } = this.state.style;
       const { min, max } = this.state;
       const { canvas, ctx, tempCanvas, tempCtx, distance } = this;
-      const { width, height } = canvas.getBoundingClientRect();
-      canvas.width = width;
-      canvas.height = height;
+      const ratio = window.devicePixelRatio || 1;
+      let { width, height } = canvas.getBoundingClientRect();
+      width = Math.floor(width);
+      height = Math.floor(height);
+      const scaledWidth = Math.floor(width * ratio);
+      const scaledHeight = Math.floor(height * ratio);
+      canvas.width = scaledWidth;
+      canvas.height = scaledHeight;
+      ctx.scale(ratio, ratio);
       const drawHeight = Math.min(height, width) * 0.75;
       const drawWidth = drawHeight;
       const left = (width - drawWidth) * 0.5;
@@ -1932,6 +2062,102 @@ class Radio extends _AbstractItem__WEBPACK_IMPORTED_MODULE_0__["default"] {
 
 /***/ }),
 
+/***/ "./src/components/Soundfile.ts":
+/*!*************************************!*\
+  !*** ./src/components/Soundfile.ts ***!
+  \*************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ Soundfile)
+/* harmony export */ });
+/* harmony import */ var _AbstractItem__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./AbstractItem */ "./src/components/AbstractItem.ts");
+/* harmony import */ var _Soundfile_scss__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./Soundfile.scss */ "./src/components/Soundfile.scss");
+var __defProp = Object.defineProperty;
+var __defProps = Object.defineProperties;
+var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
+var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __propIsEnum = Object.prototype.propertyIsEnumerable;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __spreadValues = (a, b) => {
+  for (var prop in b || (b = {}))
+    if (__hasOwnProp.call(b, prop))
+      __defNormalProp(a, prop, b[prop]);
+  if (__getOwnPropSymbols)
+    for (var prop of __getOwnPropSymbols(b)) {
+      if (__propIsEnum.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    }
+  return a;
+};
+var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
+
+
+class Soundfile extends _AbstractItem__WEBPACK_IMPORTED_MODULE_0__["default"] {
+  constructor() {
+    super(...arguments);
+    this.className = "soundfile";
+    this.setStyle = () => {
+      const { value, style } = this.state;
+      const { height, grid, fontsize, fontname, fontface, textcolor, textoncolor, bgoncolor, bgcolor, bordercolor, borderoncolor } = style;
+      this.btn.style.backgroundColor = value ? bgoncolor : bgcolor;
+      this.btn.style.borderColor = value ? borderoncolor : bordercolor;
+      this.btn.style.color = value ? textoncolor : textcolor;
+      this.btn.style.fontSize = `${fontsize || height * grid / 4}px`;
+      this.btn.style.fontFamily = `${fontname}, sans-serif`;
+      this.btn.style.fontStyle = fontface;
+    };
+    this.handlePointerDown = () => {
+    };
+    this.handlePointerUp = () => {
+    };
+  }
+  static get defaultProps() {
+    const inherited = super.defaultProps;
+    return __spreadProps(__spreadValues({}, inherited), {
+      style: __spreadProps(__spreadValues({}, inherited.style), {
+        fontname: "Arial",
+        fontsize: void 0,
+        fontface: "normal",
+        bgcolor: "rgba(40, 40, 40, 1)",
+        bgoncolor: "rgba(18, 18, 18, 1)",
+        bordercolor: "rgba(80, 80, 80, 1)",
+        borderoncolor: "rgba(255, 165, 0, 1)",
+        textcolor: "rgba(226, 222, 255, 0.5)",
+        textoncolor: "rgba(255, 165, 0, 1)"
+      })
+    });
+  }
+  componentWillMount() {
+    super.componentWillMount();
+    this.btn = document.createElement("div");
+    this.span = document.createElement("span");
+    this.span.innerText = this.state.label;
+    this.setStyle();
+    return this;
+  }
+  mount() {
+    this.btn.appendChild(this.span);
+    this.container.appendChild(this.btn);
+    return super.mount();
+  }
+  componentDidMount() {
+    super.componentDidMount();
+    this.btn.addEventListener("mousedown", this.handleMouseDown);
+    this.btn.addEventListener("touchstart", this.handleTouchStart);
+    this.on("style", () => this.schedule(this.setStyle));
+    const labelChange = () => this.span.innerText = this.state.label;
+    this.on("label", () => this.schedule(labelChange));
+    this.on("value", () => this.schedule(this.setStyle));
+    return this;
+  }
+}
+
+
+/***/ }),
+
 /***/ "./src/components/VBargraph.ts":
 /*!*************************************!*\
   !*** ./src/components/VBargraph.ts ***!
@@ -1984,11 +2210,15 @@ class VBargraph extends _AbstractItem__WEBPACK_IMPORTED_MODULE_0__["default"] {
       const { type, max, min, enums, scale, value } = this.state;
       const ctx = this.ctx;
       const canvas = this.canvas;
+      const ratio = window.devicePixelRatio || 1;
       let { width, height } = this.canvasDiv.getBoundingClientRect();
       width = Math.floor(width);
       height = Math.floor(height);
-      canvas.width = width;
-      canvas.height = height;
+      const scaledWidth = Math.floor(width * ratio);
+      const scaledHeight = Math.floor(height * ratio);
+      canvas.width = scaledWidth;
+      canvas.height = scaledHeight;
+      ctx.scale(ratio, ratio);
       const drawHeight = height * 0.9;
       const drawWidth = barwidth || Math.min(width / 3, drawHeight * 0.05);
       const left = (width - drawWidth) * 0.5;
@@ -2187,11 +2417,15 @@ class VSlider extends _AbstractItem__WEBPACK_IMPORTED_MODULE_0__["default"] {
       const ctx = this.ctx;
       const canvas = this.canvas;
       const distance = this.distance;
+      const ratio = window.devicePixelRatio || 1;
       let { width, height } = this.canvasDiv.getBoundingClientRect();
       width = Math.floor(width);
       height = Math.floor(height);
-      canvas.width = width;
-      canvas.height = height;
+      const scaledWidth = Math.floor(width * ratio);
+      const scaledHeight = Math.floor(height * ratio);
+      canvas.width = scaledWidth;
+      canvas.height = scaledHeight;
+      ctx.scale(ratio, ratio);
       const drawHeight = height * 0.9;
       const drawWidth = sliderwidth || Math.min(width / 3, drawHeight * 0.05);
       const left = (width - drawWidth) * 0.5;
@@ -2487,10 +2721,13 @@ const _AbstractGroup = class {
     this.layout = {
       type: group.type,
       width: _AbstractGroup.padding * 2,
-      height: _AbstractGroup.padding * 2 + _AbstractGroup.labelHeight,
+      height: _AbstractGroup.padding * 2 + (this.isRoot ? 0 : _AbstractGroup.labelHeight),
       sizing
     };
   }
+  /**
+   * find recursively if the group has horizontal-sizable item
+   */
   get hasHSizingDesc() {
     return !!this.items.find((item) => {
       if (item instanceof _AbstractGroup)
@@ -2498,6 +2735,9 @@ const _AbstractGroup = class {
       return item.layout.sizing === "horizontal" || item.layout.sizing === "both";
     });
   }
+  /**
+   * find recursively if the group has vertical-sizable item
+   */
   get hasVSizingDesc() {
     return !!this.items.find((item) => {
       if (item instanceof _AbstractGroup)
@@ -2693,7 +2933,7 @@ class HGroup extends _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"] {
     this.items.forEach((item) => {
       item.adjust();
       this.layout.width += item.layout.width;
-      this.layout.height = Math.max(this.layout.height, item.layout.height + 2 * _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].padding + _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].labelHeight);
+      this.layout.height = Math.max(this.layout.height, item.layout.height + 2 * _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].padding + (this.isRoot ? 0 : _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].labelHeight));
     });
     this.layout.width += _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].spaceBetween * (this.items.length - 1);
     if (this.layout.width < 1)
@@ -2714,7 +2954,7 @@ class HGroup extends _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"] {
         item.layout.width += dX$;
       }
       if (item.layout.sizing === "both" || item.layout.sizing === "vertical") {
-        dY$ = this.layout.height - 2 * _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].padding - _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].labelHeight - item.layout.height;
+        dY$ = this.layout.height - 2 * _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].padding - (this.isRoot ? 0 : _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].labelHeight) - item.layout.height;
         item.layout.height += dY$;
       }
       item.expand(dX$, dY$);
@@ -2724,12 +2964,12 @@ class HGroup extends _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"] {
   offset() {
     const { labelHeight, padding, spaceBetween } = _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"];
     let $left = padding;
-    const $top = padding + labelHeight;
+    const $top = padding + (this.isRoot ? 0 : labelHeight);
     const { height } = this.layout;
     this.items.forEach((item) => {
       item.layout.offsetLeft = $left;
       item.layout.offsetTop = $top;
-      item.layout.offsetTop += (height - labelHeight - item.layout.height) / 2 - padding;
+      item.layout.offsetTop += (height - (this.isRoot ? 0 : labelHeight) - item.layout.height) / 2 - padding;
       item.layout.left = (this.layout.left || 0) + item.layout.offsetLeft;
       item.layout.top = (this.layout.top || 0) + item.layout.offsetTop;
       item.offset();
@@ -2809,18 +3049,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _HSlider__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./HSlider */ "./src/layout/HSlider.ts");
 /* harmony import */ var _VSlider__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./VSlider */ "./src/layout/VSlider.ts");
 /* harmony import */ var _Nentry__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./Nentry */ "./src/layout/Nentry.ts");
-/* harmony import */ var _Button__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./Button */ "./src/layout/Button.ts");
-/* harmony import */ var _Checkbox__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./Checkbox */ "./src/layout/Checkbox.ts");
-/* harmony import */ var _Knob__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./Knob */ "./src/layout/Knob.ts");
-/* harmony import */ var _Menu__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./Menu */ "./src/layout/Menu.ts");
-/* harmony import */ var _Radio__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./Radio */ "./src/layout/Radio.ts");
-/* harmony import */ var _Led__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./Led */ "./src/layout/Led.ts");
-/* harmony import */ var _Numerical__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./Numerical */ "./src/layout/Numerical.ts");
-/* harmony import */ var _HBargraph__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./HBargraph */ "./src/layout/HBargraph.ts");
-/* harmony import */ var _VBargraph__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./VBargraph */ "./src/layout/VBargraph.ts");
-/* harmony import */ var _HGroup__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./HGroup */ "./src/layout/HGroup.ts");
-/* harmony import */ var _VGroup__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./VGroup */ "./src/layout/VGroup.ts");
-/* harmony import */ var _TGroup__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./TGroup */ "./src/layout/TGroup.ts");
+/* harmony import */ var _Soundfile__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./Soundfile */ "./src/layout/Soundfile.ts");
+/* harmony import */ var _Button__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./Button */ "./src/layout/Button.ts");
+/* harmony import */ var _Checkbox__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./Checkbox */ "./src/layout/Checkbox.ts");
+/* harmony import */ var _Knob__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./Knob */ "./src/layout/Knob.ts");
+/* harmony import */ var _Menu__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./Menu */ "./src/layout/Menu.ts");
+/* harmony import */ var _Radio__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./Radio */ "./src/layout/Radio.ts");
+/* harmony import */ var _Led__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./Led */ "./src/layout/Led.ts");
+/* harmony import */ var _Numerical__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./Numerical */ "./src/layout/Numerical.ts");
+/* harmony import */ var _HBargraph__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./HBargraph */ "./src/layout/HBargraph.ts");
+/* harmony import */ var _VBargraph__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ./VBargraph */ "./src/layout/VBargraph.ts");
+/* harmony import */ var _HGroup__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./HGroup */ "./src/layout/HGroup.ts");
+/* harmony import */ var _VGroup__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./VGroup */ "./src/layout/VGroup.ts");
+/* harmony import */ var _TGroup__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ./TGroup */ "./src/layout/TGroup.ts");
+
 
 
 
@@ -2837,8 +3079,11 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class Layout {
+  /**
+   * Get the rendering type of an item by parsing its metadata
+   */
   static predictType(item) {
-    if (item.type === "vgroup" || item.type === "hgroup" || item.type === "tgroup" || item.type === "button" || item.type === "checkbox")
+    if (item.type === "vgroup" || item.type === "hgroup" || item.type === "tgroup" || item.type === "button" || item.type === "checkbox" || item.type === "soundfile")
       return item.type;
     if (item.type === "hbargraph" || item.type === "vbargraph") {
       if (item.meta && item.meta.find((meta) => meta.style && meta.style.startsWith("led")))
@@ -2857,23 +3102,27 @@ class Layout {
     }
     return item.type;
   }
+  /**
+   * Get the Layout class constructor of an item
+   */
   static getItem(item) {
     const Ctor = {
       hslider: _HSlider__WEBPACK_IMPORTED_MODULE_0__["default"],
       vslider: _VSlider__WEBPACK_IMPORTED_MODULE_1__["default"],
       nentry: _Nentry__WEBPACK_IMPORTED_MODULE_2__["default"],
-      button: _Button__WEBPACK_IMPORTED_MODULE_3__["default"],
-      checkbox: _Checkbox__WEBPACK_IMPORTED_MODULE_4__["default"],
-      knob: _Knob__WEBPACK_IMPORTED_MODULE_5__["default"],
-      menu: _Menu__WEBPACK_IMPORTED_MODULE_6__["default"],
-      radio: _Radio__WEBPACK_IMPORTED_MODULE_7__["default"],
-      led: _Led__WEBPACK_IMPORTED_MODULE_8__["default"],
-      numerical: _Numerical__WEBPACK_IMPORTED_MODULE_9__["default"],
-      hbargraph: _HBargraph__WEBPACK_IMPORTED_MODULE_10__["default"],
-      vbargraph: _VBargraph__WEBPACK_IMPORTED_MODULE_11__["default"],
-      hgroup: _HGroup__WEBPACK_IMPORTED_MODULE_12__["default"],
-      vgroup: _VGroup__WEBPACK_IMPORTED_MODULE_13__["default"],
-      tgroup: _TGroup__WEBPACK_IMPORTED_MODULE_14__["default"]
+      soundfile: _Soundfile__WEBPACK_IMPORTED_MODULE_3__["default"],
+      button: _Button__WEBPACK_IMPORTED_MODULE_4__["default"],
+      checkbox: _Checkbox__WEBPACK_IMPORTED_MODULE_5__["default"],
+      knob: _Knob__WEBPACK_IMPORTED_MODULE_6__["default"],
+      menu: _Menu__WEBPACK_IMPORTED_MODULE_7__["default"],
+      radio: _Radio__WEBPACK_IMPORTED_MODULE_8__["default"],
+      led: _Led__WEBPACK_IMPORTED_MODULE_9__["default"],
+      numerical: _Numerical__WEBPACK_IMPORTED_MODULE_10__["default"],
+      hbargraph: _HBargraph__WEBPACK_IMPORTED_MODULE_11__["default"],
+      vbargraph: _VBargraph__WEBPACK_IMPORTED_MODULE_12__["default"],
+      hgroup: _HGroup__WEBPACK_IMPORTED_MODULE_13__["default"],
+      vgroup: _VGroup__WEBPACK_IMPORTED_MODULE_14__["default"],
+      tgroup: _TGroup__WEBPACK_IMPORTED_MODULE_15__["default"]
     };
     const layoutType = this.predictType(item);
     return new Ctor[layoutType](item);
@@ -2886,7 +3135,7 @@ class Layout {
     });
   }
   static calc(ui) {
-    const rootGroup = new _VGroup__WEBPACK_IMPORTED_MODULE_13__["default"]({ items: this.getItems(ui), type: "vgroup", label: "" }, true);
+    const rootGroup = new _VGroup__WEBPACK_IMPORTED_MODULE_14__["default"]({ items: this.getItems(ui), type: "vgroup", label: "" }, true);
     rootGroup.adjust();
     rootGroup.expand(0, 0);
     rootGroup.offset();
@@ -3024,7 +3273,35 @@ class Radio extends _AbstractInputItem__WEBPACK_IMPORTED_MODULE_0__["default"] {
       type: "radio",
       width: 2,
       height: 2,
+      // TODO: vradio and hradio
       sizing: "both"
+    };
+  }
+}
+
+
+/***/ }),
+
+/***/ "./src/layout/Soundfile.ts":
+/*!*********************************!*\
+  !*** ./src/layout/Soundfile.ts ***!
+  \*********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ Soundfile)
+/* harmony export */ });
+/* harmony import */ var _AbstractInputItem__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./AbstractInputItem */ "./src/layout/AbstractInputItem.ts");
+
+class Soundfile extends _AbstractInputItem__WEBPACK_IMPORTED_MODULE_0__["default"] {
+  constructor() {
+    super(...arguments);
+    this.layout = {
+      type: "soundfile",
+      width: 2,
+      height: 1,
+      sizing: "horizontal"
     };
   }
 }
@@ -3066,7 +3343,7 @@ const _TGroup = class extends _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["defau
       if (item.layout.sizing === "both" || item.layout.sizing === "horizontal")
         dX$ = this.layout.width - 2 * _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].padding - item.layout.width;
       if (item.layout.sizing === "both" || item.layout.sizing === "vertical")
-        dY$ = this.layout.height - 2 * _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].padding - _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].labelHeight - (tabsCount ? _TGroup.tabLayout.height : 0) - item.layout.height;
+        dY$ = this.layout.height - 2 * _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].padding - (this.isRoot ? 0 : _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"].labelHeight) - (tabsCount ? _TGroup.tabLayout.height : 0) - item.layout.height;
       item.expand(dX$, dY$);
     });
     return this;
@@ -3074,7 +3351,7 @@ const _TGroup = class extends _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["defau
   offset() {
     const { labelHeight, padding } = _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"];
     const $left = padding;
-    const $top = padding + labelHeight + _TGroup.tabLayout.height;
+    const $top = padding + (this.isRoot ? 0 : labelHeight) + _TGroup.tabLayout.height;
     this.items.forEach((item) => {
       item.layout.offsetLeft = $left;
       item.layout.offsetTop = $top;
@@ -3170,7 +3447,7 @@ class VGroup extends _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"] {
   offset() {
     const { labelHeight, padding, spaceBetween } = _AbstractGroup__WEBPACK_IMPORTED_MODULE_0__["default"];
     const $left = padding;
-    let $top = padding + labelHeight;
+    let $top = padding + (this.isRoot ? 0 : labelHeight);
     const { width } = this.layout;
     this.items.forEach((item) => {
       item.layout.offsetLeft = $left;
@@ -3351,6 +3628,18 @@ __webpack_require__.r(__webpack_exports__);
 /*!***********************************!*\
   !*** ./src/components/Radio.scss ***!
   \***********************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
+/***/ "./src/components/Soundfile.scss":
+/*!***************************************!*\
+  !*** ./src/components/Soundfile.scss ***!
+  \***************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);

@@ -33,11 +33,11 @@ node faust2wam.js test/fft-denoise.dsp test/out -fft
 #### Dynamically generate WAMs from a Faust DSP code in a browser
 
 ```JavaScript
-	// Load the WAM
-	const { default: generate } = await import("./dist/index.js");
-	// Load the DSP file
-	const dspResp = await fetch("./test/rev.dsp");
-	// Generate the WAM
-	const WAM = await generate(await dspResp.text(), "Reverb");
+// Load the WAM
+const { default: generate } = await import("./dist/index.js");
+// Load the DSP file
+const dspResp = await fetch("./test/rev.dsp");
+// Generate the WAM
+const WAM = await generate(await dspResp.text(), "Reverb");
 ```
 
