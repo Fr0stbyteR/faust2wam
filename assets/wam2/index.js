@@ -4,8 +4,8 @@
  * @typedef {import("./faustwasm").FaustAudioWorkletNode} FaustAudioWorkletNode
  * @typedef {import("./faustwasm").FaustDspMeta} FaustDspMeta
  * @typedef {import("./faustwasm").FaustUIDescriptor} FaustUIDescriptor
- * @typedef {import("./faustwasm").IFaustUIGroup} IFaustUIGroup
- * @typedef {import("./faustwasm").IFaustUIItem} IFaustUIItem
+ * @typedef {import("./faustwasm").FaustUIGroup} IFaustUIGroup
+ * @typedef {import("./faustwasm").FaustUIItem} IFaustUIItem
  */
 
 import { WebAudioModule } from './sdk/index.js';
@@ -20,7 +20,8 @@ class FaustCompositeAudioNode extends CompositeAudioNode {
 	 */
 	setup(output, paramMgr) {
 		if (output.numberOfInputs > 0) this.connect(output, 0, 0);
-		paramMgr.addEventListener('wam-midi', (e) => output.midiMessage(e.detail.data.bytes));
+		output.setupWamEventHandler();
+		// paramMgr.addEventListener('wam-midi', (e) => output.midiMessage(e.detail.data.bytes));
 		/** @type {ParamMgrNode} */
 		this._wamNode = paramMgr;
 		/** @type {FaustAudioWorkletNode} */
@@ -73,6 +74,7 @@ export default class FaustPlugin extends WebAudioModule {
 	}
 
 	async createAudioNode(initialState) {
+		const { moduleId, instanceId } = this;
 		const dspName = this.descriptor.name;
 		const dspMeta = await (await fetch(`${this._baseURL}/${dspName}.json`)).json();
 		const dspModule = await WebAssembly.compileStreaming(await fetch(`${this._baseURL}/${dspName}.wasm`));
@@ -144,25 +146,36 @@ export default class FaustPlugin extends WebAudioModule {
 			faustNode = await generator.createFFTNode(
 				this.audioContext,
 				FFTUtils,
-				this.moduleId + "FaustFFT",
-				{ module: faustDsp.dspModule, json: JSON.stringify(faustDsp.dspMeta) }
+				`${moduleId}FaustFFT`,
+				{ module: faustDsp.dspModule, json: JSON.stringify(faustDsp.dspMeta), soundfiles: {} },
+				undefined,
+				undefined,
+				{ moduleId, instanceId }
 			);
 		} else if (voices) {
 			const generator = new FaustPolyDspGenerator();
 			faustNode = await generator.createNode(
 				this.audioContext,
 				voices,
-				this.moduleId + "Faust",
-				{ module: faustDsp.dspModule, json: JSON.stringify(faustDsp.dspMeta) },
+				`${moduleId}Faust`,
+				{ module: faustDsp.dspModule, json: JSON.stringify(faustDsp.dspMeta), soundfiles: {} },
 				faustDsp.mixerModule,
-				faustDsp.effectModule ? { module: faustDsp.effectModule, json: JSON.stringify(faustDsp.effectMeta) } : undefined
+				faustDsp.effectModule ? { module: faustDsp.effectModule, json: JSON.stringify(faustDsp.effectMeta), soundfiles: {} } : undefined,
+				false,
+				undefined,
+				undefined,
+				{ moduleId, instanceId }
 			);
 		} else {
 			const generator = new FaustMonoDspGenerator();
 			faustNode = await generator.createNode(
 				this.audioContext,
-				this.moduleId + "Faust",
-				{ module: faustDsp.dspModule, json: JSON.stringify(faustDsp.dspMeta) }
+				`${moduleId}Faust`,
+				{ module: faustDsp.dspModule, json: JSON.stringify(faustDsp.dspMeta), soundfiles: {} },
+				undefined,
+				undefined,
+				undefined,
+				{ moduleId, instanceId }
 			);
 		}
 		const paramMgrNode = await ParamMgrFactory.create(this, { internalParamsConfig: Object.fromEntries(faustNode.parameters) });
