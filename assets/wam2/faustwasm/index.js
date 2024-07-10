@@ -3719,22 +3719,12 @@ var FaustAudioWorkletNode = class extends (globalThis.AudioWorkletNode || null) 
   async listenSensors() {
     if (this.hasAccInput) {
       const isAndroid = /Android/i.test(navigator.userAgent);
-      let handleDeviceMotion = null;
-      if (isAndroid) {
-        handleDeviceMotion = ({ accelerationIncludingGravity }) => {
-          if (!accelerationIncludingGravity)
-            return;
-          const { x, y, z } = accelerationIncludingGravity;
-          this.propagateAcc({ x, y, z }, true);
-        };
-      } else {
-        handleDeviceMotion = ({ accelerationIncludingGravity }) => {
-          if (!accelerationIncludingGravity)
-            return;
-          const { x, y, z } = accelerationIncludingGravity;
-          this.propagateAcc({ x, y, z });
-        };
-      }
+      const handleDeviceMotion = ({ accelerationIncludingGravity }) => {
+        if (!accelerationIncludingGravity)
+          return;
+        const { x, y, z } = accelerationIncludingGravity;
+        this.propagateAcc({ x, y, z }, isAndroid);
+      };
       if (window.DeviceMotionEvent) {
         if (typeof window.DeviceMotionEvent.requestPermission === "function") {
           try {
@@ -3983,22 +3973,12 @@ var FaustScriptProcessorNode = class extends (globalThis.ScriptProcessorNode || 
   async listenSensors() {
     if (this.hasAccInput) {
       const isAndroid = /Android/i.test(navigator.userAgent);
-      let handleDeviceMotion = null;
-      if (isAndroid) {
-        handleDeviceMotion = ({ accelerationIncludingGravity }) => {
-          if (!accelerationIncludingGravity)
-            return;
-          const { x, y, z } = accelerationIncludingGravity;
-          this.propagateAcc({ x, y, z }, true);
-        };
-      } else {
-        handleDeviceMotion = ({ accelerationIncludingGravity }) => {
-          if (!accelerationIncludingGravity)
-            return;
-          const { x, y, z } = accelerationIncludingGravity;
-          this.propagateAcc({ x, y, z });
-        };
-      }
+      const handleDeviceMotion = ({ accelerationIncludingGravity }) => {
+        if (!accelerationIncludingGravity)
+          return;
+        const { x, y, z } = accelerationIncludingGravity;
+        this.propagateAcc({ x, y, z }, isAndroid);
+      };
       if (window.DeviceMotionEvent) {
         if (typeof window.DeviceMotionEvent.requestPermission === "function") {
           try {
