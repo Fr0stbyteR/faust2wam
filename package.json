@@ -29,12 +29,12 @@
   },
   "homepage": "https://github.com/webaudiomodules/faust2wam#readme",
   "devDependencies": {
-    "esbuild": "^0.21.5",
-    "typescript": "^5.4.5"
+    "esbuild": "^0.27.3",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@grame/faustwasm": "^0.4.8",
-    "@shren/faust-ui": "^1.1.12",
+    "@grame/faustwasm": "^0.15.7",
+    "@shren/faust-ui": "^1.1.19",
     "@shren/fftw-js": "^0.1.10",
     "@webaudiomodules/api": "^2.0.0-alpha.6",
     "@webaudiomodules/sdk": "^0.0.11",

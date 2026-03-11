@@ -91,8 +91,7 @@ export interface LibFaustWasm {
 	 */
 	getInfos(what: FaustInfoType): string;
 }
-export interface FaustDspFactory extends Required<LooseFaustDspFactory> {
-}
+export type FaustDspFactory = Required<LooseFaustDspFactory>;
 /**
  * The Factory structure.
  */
@@ -110,7 +109,7 @@ export interface LooseFaustDspFactory {
 	/** a unique identifier */
 	shaKey?: string;
 	/** a map of transferable audio buffers for the `soundfile` function */
-	soundfiles: Record<string, (AudioData | null)>;
+	soundfiles?: Record<string, AudioData$1 | null>;
 }
 export interface FaustDspMeta {
 	name: string;
@@ -133,6 +132,7 @@ export interface FaustUIInputItem {
 	type: FaustUIInputType;
 	label: string;
 	address: string;
+	shortname: string;
 	url: string;
 	index: number;
 	init?: number;
@@ -145,6 +145,7 @@ export interface FaustUIOutputItem {
 	type: FaustUIOutputType;
 	label: string;
 	address: string;
+	shortname: string;
 	index: number;
 	min?: number;
 	max?: number;
@@ -219,7 +220,7 @@ export declare const FFTUtils: {
 	/** Convert from Faust processor's output to direct audio output, real/imag are readonly, fft length = fftSize = (real/imag length - 1) * 2 */
 	signalToNoFFT: (real: Float32Array | Float64Array, imag: Float32Array | Float64Array, fft: Float32Array | Float64Array) => any;
 };
-export interface AudioData {
+interface AudioData$1 {
 	sampleRate: number;
 	audioBuffer: Float32Array[];
 }
@@ -230,6 +231,49 @@ export interface AudioData {
  * @param wasmFile path to `libfaust-wasm.wasm`
  */
 export declare const instantiateFaustModuleFromFile: (jsFile: string, dataFile?: string, wasmFile?: string) => Promise<FaustModule>;
+declare class FaustAudioWorkletCommunicator {
+	protected readonly port: MessagePort;
+	protected readonly supportSharedArrayBuffer: boolean;
+	protected readonly byteLength: number;
+	protected uin8Invert: Uint8ClampedArray;
+	protected uin8NewAccData: Uint8ClampedArray;
+	protected uin8NewGyrData: Uint8ClampedArray;
+	protected f32Acc: Float32Array;
+	protected f32Gyr: Float32Array;
+	constructor(port: MessagePort);
+	initializeBuffer(ab: SharedArrayBuffer | ArrayBuffer): void;
+	setNewAccDataAvailable(value: boolean): void;
+	getNewAccDataAvailable(): boolean;
+	setNewGyrDataAvailable(value: boolean): void;
+	getNewGyrDataAvailable(): boolean;
+	setAcc({ x, y, z }: {
+		x: number;
+		y: number;
+		z: number;
+	}, invert?: boolean): void;
+	getAcc(): {
+		x: number;
+		y: number;
+		z: number;
+		invert: boolean;
+	} | undefined;
+	setGyr({ alpha, beta, gamma }: {
+		alpha: number;
+		beta: number;
+		gamma: number;
+	}): void;
+	getGyr(): {
+		alpha: number;
+		beta: number;
+		gamma: number;
+	} | undefined;
+}
+declare class FaustAudioWorkletNodeCommunicator extends FaustAudioWorkletCommunicator {
+	constructor(port: MessagePort);
+}
+declare class FaustAudioWorkletProcessorCommunicator extends FaustAudioWorkletCommunicator {
+	constructor(port: MessagePort);
+}
 /**
  * The Faust wasm instance interface.
  */
@@ -361,7 +405,7 @@ export declare class FaustWasmInstantiator {
 	private static createMemoryMono;
 	private static createMemoryPoly;
 	private static createMixerAux;
-	static loadDSPFactory(wasmPath: string, jsonPath: string): Promise<FaustDspFactory>;
+	static loadDSPFactory(wasmPath: string, jsonPath: string): Promise<Required<LooseFaustDspFactory>>;
 	static loadDSPMixer(mixerPath: string, fs?: typeof FS): Promise<WebAssembly.Module>;
 	static createAsyncMonoDSPInstance(factory: LooseFaustDspFactory): Promise<FaustMonoDspInstance>;
 	static createSyncMonoDSPInstance(factory: LooseFaustDspFactory): FaustMonoDspInstance;
@@ -369,6 +413,7 @@ export declare class FaustWasmInstantiator {
 	static createSyncPolyDSPInstance(voiceFactory: LooseFaustDspFactory, mixerModule: WebAssembly.Module, voices: number, effectFactory?: LooseFaustDspFactory): FaustPolyDspInstance;
 }
 export type OutputParamHandler = (path: string, value: number) => void;
+export type InputParamHandler = (path: string, value: number) => void;
 export type ComputeHandler = (buffer_size: number) => void;
 export type PlotHandler = (plotted: Float32Array[] | Float64Array[], index: number, events?: {
 	type: string;
@@ -476,9 +521,9 @@ export declare class Soundfile {
 	constructor(allocator: WasmAllocator, sampleSize: number, curChan: number, length: number, maxChan: number, totalParts: number);
 	private allocBuffers;
 	shareBuffers(curChan: number, maxChan: number): void;
-	copyToOut(part: number, maxChannels: number, offset: number, audioData: AudioData): void;
-	copyToOutReal32(maxChannels: number, offset: number, audioData: AudioData): void;
-	copyToOutReal64(maxChannels: number, offset: number, audioData: AudioData): void;
+	copyToOut(part: number, maxChannels: number, offset: number, audioData: AudioData$1): void;
+	copyToOutReal32(maxChannels: number, offset: number, audioData: AudioData$1): void;
+	copyToOutReal64(maxChannels: number, offset: number, audioData: AudioData$1): void;
 	emptyFile(part: number, offset: number): number;
 	displayMemory(where?: string, mem?: boolean): void;
 	getPtr(): number;
@@ -490,6 +535,7 @@ export declare class Soundfile {
  * DSP implementation that mimic the C++ 'dsp' class:
  * - adding MIDI control: metadata are decoded and incoming MIDI messages will control the associated controllers
  * - an output handler can be set to treat produced output controllers (like 'bargraph')
+ * - an input handler can be set to follow control parameter changes (like sliders)
  * - regular controllers are handled using setParamValue/getParamValue and getParams methods
  */
 export interface IFaustBaseWebAudioDsp {
@@ -505,6 +551,32 @@ export interface IFaustBaseWebAudioDsp {
 	 * @return the current output handler
 	 */
 	getOutputParamHandler(): OutputParamHandler | null;
+	/**
+	 * Call the output parameter handler with a path and value.
+	 *
+	 * @param path - the path to the wanted parameter (retrieved using 'getParams' method)
+	 * @param value - the float value for the wanted control
+	 */
+	callOutputParamHandler(path: string, value: number): void;
+	/**
+	 * Set the parameter input handler, to be called when input parameters change (like sliders).
+	 *
+	 * @param handler - the input handler
+	 */
+	setInputParamHandler(handler: InputParamHandler | null): void;
+	/**
+	 * Get the parameter input handler.
+	 *
+	 * @return the current input handler
+	 */
+	getInputParamHandler(): InputParamHandler | null;
+	/**
+	 * Call the input parameter handler with a path and value.
+	 *
+	 * @param path - the path to the wanted parameter (retrieved using 'getParams' method)
+	 * @param value - the float value for the wanted control
+	 */
+	callInputParamHandler(path: string, value: number): void;
 	/**
 	 * Set the compute handler, to  be called in the 'compute' method with buffer size.
 	 *
@@ -576,6 +648,20 @@ export interface IFaustBaseWebAudioDsp {
 	 */
 	pitchWheel(chan: number, value: number): void;
 	/**
+	 * Handle MIDI keyOn messages.
+	 * @param channel
+	 * @param pitch
+	 * @param velocity
+	 */
+	keyOn(channel: number, pitch: number, velocity: number): void;
+	/**
+	 * Handle MIDI keyOn messages.
+	 * @param channel
+	 * @param pitch
+	 * @param velocity
+	 */
+	keyOff(channel: number, pitch: number, velocity: number): void;
+	/**
 	 * Set parameter value.
 	 *
 	 * @param path - the path to the wanted parameter (retrieved using 'getParams' method)
@@ -609,10 +695,10 @@ export interface IFaustBaseWebAudioDsp {
 	 */
 	getUI(): FaustUIDescriptor;
 	/**
-	* Get DSP UI items description.
-	*
-	* @return the DSP UI items description
-	*/
+	 * Get DSP UI items description.
+	 *
+	 * @return the DSP UI items description
+	 */
 	getDescriptors(): FaustUIInputItem[];
 	/**
 	 * Get DSP JSON description with its UI and metadata.
@@ -621,28 +707,42 @@ export interface IFaustBaseWebAudioDsp {
 	 */
 	getJSON(): string;
 	/**
-	 * Start the DSP.
+	 * Start accelerometer and gyroscope handlers.
+	 */
+	startSensors(): void;
+	/**
+	 * Stop accelerometer and gyroscope handlers.
+	 */
+	stopSensors(): void;
+	/** Indicating if the DSP handles the accelerometer */
+	readonly hasAccInput: boolean;
+	/**
+	 * Accelerometer handling.
+	 * accelerationIncludingGravity: DeviceMotionEvent["accelerationIncludingGravity"]
+	 * invert: boolean
+	 */
+	propagateAcc(accelerationIncludingGravity: NonNullable<DeviceMotionEvent["accelerationIncludingGravity"]>, invert: boolean): void;
+	/** Indicating if the DSP handles the gyroscope */
+	readonly hasGyrInput: boolean;
+	/**
+	 * Gyroscope handling.
+	 * event: Pick<DeviceOrientationEvent, "alpha" | "beta" | "gamma">
+	 */
+	propagateGyr(event: Pick<DeviceOrientationEvent, "alpha" | "beta" | "gamma">): void;
+	/**
+	 * Start the DSP audio processing.
 	 */
 	start(): void;
 	/**
-	 * Stop the DSP.
+	 * Stop the DSP audio processing.
 	 */
 	stop(): void;
 	/**
 	 * Destroy the DSP.
 	 */
 	destroy(): void;
-	/** Indicating if the DSP handles the accelerometer */
-	readonly hasAccInput: boolean;
-	/** Accelerometer handling */
-	propagateAcc(accelerationIncludingGravity: NonNullable<DeviceMotionEvent["accelerationIncludingGravity"]>, invert: boolean): void;
-	/** Indicating if the DSP handles the gyroscope */
-	readonly hasGyrInput: boolean;
-	/** Gyroscope handling */
-	propagateGyr(event: Pick<DeviceOrientationEvent, "alpha" | "beta" | "gamma">): void;
 }
-export interface IFaustMonoWebAudioDsp extends IFaustBaseWebAudioDsp {
-}
+export type IFaustMonoWebAudioDsp = IFaustBaseWebAudioDsp;
 export interface IFaustMonoWebAudioNode extends IFaustMonoWebAudioDsp, AudioNode {
 }
 export interface IFaustPolyWebAudioDsp extends IFaustBaseWebAudioDsp {
@@ -673,6 +773,7 @@ export interface IFaustPolyWebAudioNode extends IFaustPolyWebAudioDsp, AudioNode
 }
 export declare class FaustBaseWebAudioDsp implements IFaustBaseWebAudioDsp {
 	protected fOutputHandler: OutputParamHandler | null;
+	protected fInputHandler: InputParamHandler | null;
 	protected fComputeHandler: ComputeHandler | null;
 	protected fPlotHandler: PlotHandler | null;
 	protected fCachedEvents: {
@@ -699,11 +800,31 @@ export declare class FaustBaseWebAudioDsp implements IFaustBaseWebAudioDsp {
 	protected fSampleSize: number;
 	protected fPitchwheelLabel: {
 		path: string;
+		chan: number;
 		min: number;
 		max: number;
 	}[];
 	protected fCtrlLabel: {
 		path: string;
+		chan: number;
+		min: number;
+		max: number;
+	}[][];
+	protected fMidiKeyLabel: {
+		path: string;
+		chan: number;
+		min: number;
+		max: number;
+	}[][];
+	protected fMidiKeyOnLabel: {
+		path: string;
+		chan: number;
+		min: number;
+		max: number;
+	}[][];
+	protected fMidiKeyOffLabel: {
+		path: string;
+		chan: number;
 		min: number;
 		max: number;
 	}[][];
@@ -749,15 +870,18 @@ export declare class FaustBaseWebAudioDsp implements IFaustBaseWebAudioDsp {
 	 * Init soundfiles memory.
 	 *
 	 * @param allocator : the wasm memory allocator
-	 * @param sfReader : the soundfile reader
 	 * @param baseDSP : the DSP struct (either a monophonic DSP of polyphonic voice) base DSP in the wasm memory
-	*/
+	 */
 	protected initSoundfileMemory(allocator: WasmAllocator, baseDSP: number): void;
 	protected updateOutputs(): void;
 	metadata(handler: MetadataHandler): void;
 	compute(input: Float32Array[], output: Float32Array[]): boolean;
 	setOutputParamHandler(handler: OutputParamHandler | null): void;
 	getOutputParamHandler(): OutputParamHandler | null;
+	callOutputParamHandler(path: string, value: number): void;
+	setInputParamHandler(handler: InputParamHandler | null): void;
+	getInputParamHandler(): InputParamHandler | null;
+	callInputParamHandler(path: string, value: number): void;
 	setComputeHandler(handler: ComputeHandler | null): void;
 	getComputeHandler(): ComputeHandler | null;
 	setPlotHandler(handler: PlotHandler | null): void;
@@ -766,6 +890,8 @@ export declare class FaustBaseWebAudioDsp implements IFaustBaseWebAudioDsp {
 	getNumOutputs(): number;
 	midiMessage(data: number[] | Uint8Array): void;
 	ctrlChange(channel: number, ctrl: number, value: number): void;
+	keyOn(channel: number, pitch: number, velocity: number): void;
+	keyOff(channel: number, pitch: number, velocity: number): void;
 	pitchWheel(channel: number, wheel: number): void;
 	setParamValue(path: string, value: number): void;
 	getParamValue(path: string): number;
@@ -775,6 +901,8 @@ export declare class FaustBaseWebAudioDsp implements IFaustBaseWebAudioDsp {
 	getUI(): FaustUIDescriptor;
 	getDescriptors(): FaustUIInputItem[];
 	hasSoundfiles(): boolean;
+	startSensors(): void;
+	stopSensors(): void;
 	start(): void;
 	stop(): void;
 	destroy(): void;
@@ -815,7 +943,6 @@ export declare class FaustWebAudioDspVoice {
 	fNextVel: number;
 	fDate: number;
 	fLevel: number;
-	fRelease: number;
 	constructor($dsp: number, api: IFaustDspInstance, inputItems: string[], pathTable: {
 		[address: string]: number;
 	}, sampleRate: number);
@@ -874,6 +1001,7 @@ export interface FaustAudioWorkletProcessorDependencies<Poly extends boolean = f
 	FaustPolyWebAudioDsp: Poly extends true ? typeof FaustPolyWebAudioDsp : undefined;
 	FaustWebAudioDspVoice: Poly extends true ? typeof FaustWebAudioDspVoice : undefined;
 	FaustWasmInstantiator: typeof FaustWasmInstantiator;
+	FaustAudioWorkletProcessorCommunicator: typeof FaustAudioWorkletProcessorCommunicator;
 }
 export interface FaustAudioWorkletNodeOptions<Poly extends boolean = false> extends AudioWorkletNodeOptions {
 	processorOptions: Poly extends true ? FaustPolyAudioWorkletProcessorOptions : FaustMonoAudioWorkletProcessorOptions;
@@ -924,6 +1052,7 @@ export interface FaustFFTAudioWorkletProcessorDependencies {
 	FaustBaseWebAudioDsp: typeof FaustBaseWebAudioDsp;
 	FaustMonoWebAudioDsp: typeof FaustMonoWebAudioDsp;
 	FaustWasmInstantiator: typeof FaustWasmInstantiator;
+	FaustAudioWorkletProcessorCommunicator: typeof FaustAudioWorkletProcessorCommunicator;
 	FFTUtils: typeof FFTUtils;
 }
 export interface FaustFFTAudioWorkletNodeOptions extends AudioWorkletNodeOptions {
@@ -964,7 +1093,7 @@ export declare class LibFaust implements ILibFaust {
 	toString(): string;
 }
 export declare const ab2str: (buf: Uint8Array) => any;
-export declare const str2ab: (str: string) => Uint8Array;
+export declare const str2ab: (str: string) => Uint8Array<ArrayBuffer>;
 export interface IFaustCompiler {
 	/**
 	 * Gives the Faust compiler version.
@@ -1060,29 +1189,29 @@ export declare class FaustCompiler implements IFaustCompiler {
 		code: string;
 		json: any;
 		poly: boolean;
-	}>): Promise<Map<string, FaustDspFactory>[]>;
+	}>): Promise<Map<string, Required<LooseFaustDspFactory>>[]>;
 	/**
 	 * Import a stringified DSP factories table
 	 */
-	static importDSPFactories(tableStr: string): Promise<Map<string, FaustDspFactory>[]>;
+	static importDSPFactories(tableStr: string): Promise<Map<string, Required<LooseFaustDspFactory>>[]>;
 	constructor(libFaust: ILibFaust);
 	private intVec2intArray;
 	private createDSPFactory;
 	version(): string;
 	getErrorMessage(): string;
-	createMonoDSPFactory(name: string, code: string, args: string): Promise<FaustDspFactory | null>;
-	createPolyDSPFactory(name: string, code: string, args: string): Promise<FaustDspFactory | null>;
+	createMonoDSPFactory(name: string, code: string, args: string): Promise<Required<LooseFaustDspFactory> | null>;
+	createPolyDSPFactory(name: string, code: string, args: string): Promise<Required<LooseFaustDspFactory> | null>;
 	deleteDSPFactory(factory: FaustDspFactory): void;
 	expandDSP(code: string, args: string): string;
 	generateAuxFiles(name: string, code: string, args: string): boolean;
 	deleteAllDSPFactories(): void;
 	fs(): typeof FS;
 	getAsyncInternalMixerModule(isDouble?: boolean): Promise<{
-		mixerBuffer: Uint8Array;
+		mixerBuffer: Uint8Array<ArrayBufferLike>;
 		mixerModule: WebAssembly.Module;
 	}>;
 	getSyncInternalMixerModule(isDouble?: boolean): {
-		mixerBuffer: Uint8Array;
+		mixerBuffer: Uint8Array<ArrayBufferLike>;
 		mixerModule: WebAssembly.Module;
 	};
 }
@@ -1106,6 +1235,10 @@ export declare class FaustOfflineProcessor<Poly extends boolean = false> {
 	compute(input: Float32Array[], output: Float32Array[]): boolean;
 	setOutputParamHandler(handler: OutputParamHandler): void;
 	getOutputParamHandler(): OutputParamHandler | null;
+	callOutputParamHandler(path: string, value: number): void;
+	setInputParamHandler(handler: InputParamHandler): void;
+	getInputParamHandler(): InputParamHandler | null;
+	callInputParamHandler(path: string, value: number): void;
 	setComputeHandler(handler: ComputeHandler): void;
 	getComputeHandler(): ComputeHandler | null;
 	setPlotHandler(handler: PlotHandler): void;
@@ -1116,6 +1249,8 @@ export declare class FaustOfflineProcessor<Poly extends boolean = false> {
 	midiMessage(data: number[] | Uint8Array): void;
 	ctrlChange(chan: number, ctrl: number, value: number): void;
 	pitchWheel(chan: number, value: number): void;
+	keyOn(channel: number, pitch: number, velocity: number): void;
+	keyOff(channel: number, pitch: number, velocity: number): void;
 	setParamValue(path: string, value: number): void;
 	getParamValue(path: string): number;
 	getParams(): string[];
@@ -1130,6 +1265,8 @@ export declare class FaustOfflineProcessor<Poly extends boolean = false> {
 	propagateAcc(accelerationIncludingGravity: NonNullable<DeviceMotionEvent["accelerationIncludingGravity"]>, invert?: boolean): void;
 	get hasGyrInput(): boolean;
 	propagateGyr(event: Pick<DeviceOrientationEvent, "alpha" | "beta" | "gamma">): void;
+	startSensors(): void;
+	stopSensors(): void;
 	/**
 	 * Render frames in an array.
 	 *
@@ -1190,7 +1327,7 @@ export interface WavEncoderOptions {
  * Code from https://github.com/mohayonao/wav-encoder
  */
 export declare class WavEncoder {
-	static encode(audioBuffer: Float32Array[], options: WavEncoderOptions): ArrayBuffer;
+	static encode(audioBuffer: Float32Array[], options: WavEncoderOptions): ArrayBuffer | SharedArrayBuffer;
 	private static writeHeader;
 	private static writeData;
 }
@@ -1214,6 +1351,12 @@ export declare class WavDecoder {
 }
 /** Read metadata and fetch soundfiles */
 export declare class SoundfileReader {
+	/**
+	 * Set fallback base URLs used to resolve soundfile paths.
+	 *
+	 * In Node or other non-browser runtimes, `location` may be undefined;
+	 * in that case this returns an empty list to avoid resolution errors.
+	 */
 	static get fallbackPaths(): string[];
 	/**
 	 * Extract the parent URL from an URL.
@@ -1235,13 +1378,6 @@ export declare class SoundfileReader {
 	 * @returns : the URLs
 	 */
 	static findSoundfilesFromMeta(dspMeta: FaustDspMeta): LooseFaustDspFactory["soundfiles"];
-	/**
-	 * Check if the file exists.
-	 *
-	 * @param url : the url of the file to check
-	 * @returns : true if the file exists, otherwise false
-	 */
-	private static checkFileExists;
 	/**
 	 * Fetch the soundfile.
 	 *
@@ -1282,15 +1418,26 @@ export declare class FaustAudioWorkletNode<Poly extends boolean = false> extends
 	protected fJSON: string;
 	protected fInputsItems: string[];
 	protected fOutputHandler: OutputParamHandler | null;
+	protected fInputHandler: InputParamHandler | null;
 	protected fComputeHandler: ComputeHandler | null;
 	protected fPlotHandler: PlotHandler | null;
 	protected fUICallback: UIHandler;
 	protected fDescriptor: FaustUIInputItem[];
+	protected fCommunicator: FaustAudioWorkletNodeCommunicator;
+	protected fParamAliases: Record<string, string>;
 	constructor(context: BaseAudioContext, name: string, factory: LooseFaustDspFactory, options?: Partial<FaustAudioWorkletNodeOptions<Poly>>);
+	protected handleMessageAux: (e: MessageEvent) => void;
+	private handleDeviceMotion;
+	private handleDeviceOrientation;
 	/** Setup accelerometer and gyroscope handlers */
-	listenSensors(): Promise<void>;
+	startSensors(): Promise<void>;
+	stopSensors(): void;
 	setOutputParamHandler(handler: OutputParamHandler | null): void;
 	getOutputParamHandler(): OutputParamHandler | null;
+	callOutputParamHandler(path: string, value: number): void;
+	setInputParamHandler(handler: InputParamHandler | null): void;
+	getInputParamHandler(): InputParamHandler | null;
+	callInputParamHandler(path: string, value: number): void;
 	setComputeHandler(handler: ComputeHandler | null): void;
 	getComputeHandler(): ComputeHandler | null;
 	setPlotHandler(handler: PlotHandler | null): void;
@@ -1303,6 +1450,8 @@ export declare class FaustAudioWorkletNode<Poly extends boolean = false> extends
 	midiMessage(data: number[] | Uint8Array): void;
 	ctrlChange(channel: number, ctrl: number, value: number): void;
 	pitchWheel(channel: number, wheel: number): void;
+	keyOn(channel: number, pitch: number, velocity: number): void;
+	keyOff(channel: number, pitch: number, velocity: number): void;
 	get hasAccInput(): boolean;
 	propagateAcc(accelerationIncludingGravity: NonNullable<DeviceMotionEvent["accelerationIncludingGravity"]>, invert?: boolean): void;
 	get hasGyrInput(): boolean;
@@ -1350,12 +1499,20 @@ export declare class FaustScriptProcessorNode<Poly extends boolean = false> exte
 	protected fDSPCode: Poly extends true ? FaustPolyWebAudioDsp : FaustMonoWebAudioDsp;
 	protected fInputs: Float32Array[];
 	protected fOutputs: Float32Array[];
+	protected handleDeviceMotion: any;
+	protected handleDeviceOrientation: any;
 	init(instance: Poly extends true ? FaustPolyWebAudioDsp : FaustMonoWebAudioDsp): void;
-	/** Setup accelerometer and gyroscope handlers */
-	listenSensors(): Promise<void>;
+	/** Start accelerometer and gyroscope handlers */
+	startSensors(): Promise<void>;
+	/** Stop accelerometer and gyroscope handlers */
+	stopSensors(): void;
 	compute(input: Float32Array[], output: Float32Array[]): boolean;
 	setOutputParamHandler(handler: OutputParamHandler): void;
 	getOutputParamHandler(): OutputParamHandler | null;
+	callOutputParamHandler(path: string, value: number): void;
+	setInputParamHandler(handler: InputParamHandler): void;
+	getInputParamHandler(): InputParamHandler | null;
+	callInputParamHandler(path: string, value: number): void;
 	setComputeHandler(handler: ComputeHandler): void;
 	getComputeHandler(): ComputeHandler | null;
 	setPlotHandler(handler: PlotHandler): void;
@@ -1366,6 +1523,8 @@ export declare class FaustScriptProcessorNode<Poly extends boolean = false> exte
 	midiMessage(data: number[] | Uint8Array): void;
 	ctrlChange(chan: number, ctrl: number, value: number): void;
 	pitchWheel(chan: number, value: number): void;
+	keyOn(channel: number, pitch: number, velocity: number): void;
+	keyOff(channel: number, pitch: number, velocity: number): void;
 	setParamValue(path: string, value: number): void;
 	getParamValue(path: string): number;
 	getParams(): string[];
@@ -1394,11 +1553,25 @@ export interface GeneratorSupportingSoundfiles {
 	 *
 	 * @param soundfileMap a map of id - `AudioData` as an object where `AudioData` contains channel data as `audioBuffer: Float32Array[]` and `sampleRate: number`
 	 */
-	addSoundfiles(soundfileMap: Record<string, AudioData>): void;
+	addSoundfiles(soundfileMap: Record<string, AudioData$1>): void;
 	/**
 	 * Get a list of soundfiles needed, call after `compile()`
 	 */
 	getSoundfileList(): string[];
+}
+export interface IFaustDspGenerator {
+	/**
+	 * Create a monophonic or polyphonic WebAudio node (either ScriptProcessorNode or AudioWorkletNode).
+	 * Analyze the code to decide whether to create a monophonic or polyphonic node.
+	 *
+	 * @param context - the WebAudio context
+	 * @param name - DSP name, can be used for processorName
+	 * @param code - the DSP code
+	 * @param sp - whether to compile a ScriptProcessorNode or an AudioWorkletNode
+	 * @param bufferSize - the buffer size in frames to be used in ScriptProcessorNode only, since AudioWorkletNode always uses 128 frames
+	 * @returns the compiled monophonic or polyphonic WebAudio node or 'null' if failure
+	 */
+	createFaustNode(context: BaseAudioContext, name: string, code: string, sp?: boolean, bufferSize?: number): Promise<IFaustMonoWebAudioNode | IFaustPolyWebAudioNode | null>;
 }
 export interface IFaustMonoDspGenerator extends GeneratorSupportingSoundfiles {
 	/**
@@ -1537,7 +1710,7 @@ export declare class FaustMonoDspGenerator implements IFaustMonoDspGenerator {
 	factory: FaustDspFactory | null;
 	constructor();
 	compile(compiler: IFaustCompiler, name: string, code: string, args: string): Promise<this | null>;
-	addSoundfiles(soundfileMap: Record<string, AudioData>): void;
+	addSoundfiles(soundfileMap: Record<string, AudioData$1>): void;
 	getSoundfileList(): string[];
 	createNode<SP extends boolean = false>(context: BaseAudioContext, name?: string, factory?: LooseFaustDspFactory, sp?: SP, bufferSize?: number, processorName?: string, processorOptions?: Record<string, any>): Promise<SP extends true ? FaustMonoScriptProcessorNode | null : FaustMonoAudioWorkletNode | null>;
 	createFFTNode(context: BaseAudioContext, fftUtils: typeof FFTUtils, name?: string, factory?: LooseFaustDspFactory, fftOptions?: Partial<FaustFFTOptionsData>, processorName?: string, processorOptions?: Record<string, any>): Promise<FaustMonoAudioWorkletNode | null>;
@@ -1560,7 +1733,7 @@ export declare class FaustPolyDspGenerator implements IFaustPolyDspGenerator {
 	mixerModule: WebAssembly.Module;
 	constructor();
 	compile(compiler: IFaustCompiler, name: string, dspCodeAux: string, args: string, effectCodeAux?: string): Promise<this | null>;
-	addSoundfiles(soundfileMap: Record<string, AudioData>): void;
+	addSoundfiles(soundfileMap: Record<string, AudioData$1>): void;
 	getSoundfileList(): string[];
 	createNode<SP extends boolean = false>(context: BaseAudioContext, voices: number, name?: string, voiceFactory?: LooseFaustDspFactory, mixerModule?: WebAssembly.Module, effectFactory?: LooseFaustDspFactory | null, sp?: SP, bufferSize?: number, processorName?: string, processorOptions?: {}): Promise<SP extends true ? FaustPolyScriptProcessorNode | null : FaustPolyAudioWorkletNode | null>;
 	createAudioWorkletProcessor(name?: string, voiceFactory?: LooseFaustDspFactory, effectFactory?: LooseFaustDspFactory | null, processorName?: string): Promise<{
@@ -1573,5 +1746,19 @@ export declare class FaustPolyDspGenerator implements IFaustPolyDspGenerator {
 	getJSON(): string;
 	getUI(): FaustUIDescriptor;
 }
+export declare class FaustDspGenerator implements IFaustDspGenerator {
+	private static compilerPromise;
+	private extractMidiAndNvoices;
+	/**
+	 * Compile DSP code, inspect metadata for [nvoices:] (and optionally [midi:on]), and build either a mono
+	 * or poly WebAudio node (ScriptProcessor or AudioWorklet depending on `sp`). Compilation uses a shared,
+	 * lazily-created libfaust instance to avoid repeatedly instantiating the WASM compiler.
+	 */
+	createFaustNode(context: BaseAudioContext, name: string, code: string, sp?: boolean, bufferSize?: number): Promise<IFaustMonoWebAudioNode | IFaustPolyWebAudioNode | null>;
+}
+
+export {
+	AudioData$1 as AudioData,
+};
 
 export {};

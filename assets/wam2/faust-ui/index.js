@@ -175,9 +175,10 @@ class FaustUI {
     if (typeof listenWindowMessage === "undefined" || listenWindowMessage === true) {
       window.addEventListener("message", (e) => {
         const { data, source } = e;
-        this.hostWindow = source;
+        if (!data) return;
         const { type } = data;
         if (!type) return;
+        this.hostWindow = source;
         if (type === "ui") {
           this.ui = data.ui;
         } else if (type === "param") {
@@ -468,6 +469,14 @@ const _AbstractItem = class _AbstractItem extends _AbstractComponent__WEBPACK_IM
     };
     this.handleClick = (e) => {
     };
+    /**
+     * Handle double-click events to reset the value to its initial state.
+     */
+    this.handleDoubleClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.setToInitialValue();
+    };
     this.handleMouseDown = (e) => {
       e.preventDefault();
       e.currentTarget.focus();
@@ -556,6 +565,9 @@ const _AbstractItem = class _AbstractItem extends _AbstractComponent__WEBPACK_IM
     const changed = this.setState({ value });
     if (changed) this.change(value);
     return changed;
+  }
+  setToInitialValue() {
+    this.setValue(this.state.init);
   }
   /**
    * Send value to DSP
@@ -697,6 +709,7 @@ _AbstractItem.defaultProps = {
   address: "",
   min: 0,
   max: 1,
+  init: 0,
   enums: {},
   type: "float",
   unit: "",
@@ -885,6 +898,14 @@ __webpack_require__.r(__webpack_exports__);
 class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
   constructor() {
     super(...arguments);
+    /**
+     * Handle double-click events to reset all children's value to its initial state.
+     */
+    this.handleDoubleClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.setToInitialValue();
+    };
     this.updateUI = () => {
       this.children = [];
       const { style, type, items, emitter, isRoot } = this.state;
@@ -945,10 +966,10 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
     if (!metaIn) return { metaObject };
     metaIn.forEach((m) => Object.assign(metaObject, m));
     if (metaObject.style) {
-      const enumsRegex = /\{(?:(?:'|_|-)(.+?)(?:'|_|-):([-+]?[0-9]*\.?[0-9]+?);)+(?:(?:'|_|-)(.+?)(?:'|_|-):([-+]?[0-9]*\.?[0-9]+?))\}/;
+      const enumsRegex = /\{\s*(?:['_\-](.+?)['_\-]\s*:\s*([-+]?[0-9]*\.?[0-9]+)\s*;\s*)+(?:['_\-](.+?)['_\-]\s*:\s*([-+]?[0-9]*\.?[0-9]+))\s*\}/;
       const matched = metaObject.style.match(enumsRegex);
       if (matched) {
-        const itemsRegex = /(?:(?:'|_|-)(.+?)(?:'|_|-):([-+]?[0-9]*\.?[0-9]+?))/g;
+        const itemsRegex = /['_\-](.+?)['_\-]\s*:\s*([-+]?[0-9]*\.?[0-9]+)\s*/g;
         const enums = {};
         let item;
         while (item = itemsRegex.exec(matched[0])) {
@@ -1002,7 +1023,8 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
       min: isFinite(min) ? min : 0,
       max: isFinite(max) ? max : 1,
       step: "step" in item ? +item.step : 1,
-      value: "init" in item ? +item.init || 0 : 0
+      value: "init" in item ? +item.init || 0 : 0,
+      init: "init" in item ? +item.init || 0 : 0
     };
     if (type === "button") return new _Button__WEBPACK_IMPORTED_MODULE_5__["default"](props);
     if (type === "checkbox") return new _Checkbox__WEBPACK_IMPORTED_MODULE_6__["default"](props);
@@ -1018,6 +1040,9 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
     if (type === "numerical") return new _Numerical__WEBPACK_IMPORTED_MODULE_11__["default"](props);
     if (type === "led") return new _Led__WEBPACK_IMPORTED_MODULE_10__["default"](props);
     return null;
+  }
+  setToInitialValue() {
+    this.children.forEach((item) => item.setToInitialValue());
   }
   setState(newState) {
     let shouldUpdate = false;
@@ -1090,7 +1115,7 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
     return this;
   }
   componentDidMount() {
-    var _a;
+    var _a, _b;
     const handleResize = () => {
       const { grid, left, top, width, height } = this.state.style;
       if (!this.state.isRoot) this.label.style.height = `${grid * 0.3}px`;
@@ -1124,7 +1149,8 @@ class Group extends _AbstractComponent__WEBPACK_IMPORTED_MODULE_0__["default"] {
     };
     this.on("label", () => this.schedule(labelChange));
     this.paintLabel();
-    if ((_a = this.tabs) == null ? void 0 : _a.children.length) this.tabs.children[0].click();
+    (_a = this.labelCanvas) == null ? void 0 : _a.addEventListener("dblclick", this.handleDoubleClick);
+    if ((_b = this.tabs) == null ? void 0 : _b.children.length) this.tabs.children[0].click();
     this.children.forEach((item) => item.componentDidMount());
     return this;
   }
@@ -1445,6 +1471,7 @@ class Knob extends _AbstractItem__WEBPACK_IMPORTED_MODULE_0__["default"] {
     super.componentDidMount();
     this.input.addEventListener("change", this.handleChange);
     this.canvas.addEventListener("pointerdown", this.handlePointerDown);
+    this.canvas.addEventListener("dblclick", this.handleDoubleClick);
     this.on("style", () => {
       this.schedule(this.setStyle);
       this.schedule(this.paint);
@@ -2470,6 +2497,7 @@ class VSlider extends _AbstractItem__WEBPACK_IMPORTED_MODULE_0__["default"] {
     super.componentDidMount();
     this.input.addEventListener("change", this.handleChange);
     this.canvas.addEventListener("pointerdown", this.handlePointerDown);
+    this.canvas.addEventListener("dblclick", this.handleDoubleClick);
     this.on("style", () => {
       this.schedule(this.setStyle);
       this.schedule(this.paint);
@@ -2647,7 +2675,10 @@ const instantiate = () => {
   });
   let host;
   window.addEventListener("message", (e) => {
-    const { source } = e;
+    const { data, source } = e;
+    if (!data) return;
+    const { type } = data;
+    if (!type) return;
     host = source;
   });
   window.addEventListener("keydown", (e) => {
@@ -3701,6 +3732,8 @@ __webpack_require__.r(__webpack_exports__);
 /******/ 
 /************************************************************************/
 var __webpack_exports__ = {};
+// This entry needs to be wrapped in an IIFE because it needs to be isolated against other modules in the chunk.
+(() => {
 /*!**********************!*\
   !*** ./src/index.ts ***!
   \**********************/
@@ -3713,6 +3746,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _instantiate__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./instantiate */ "./src/instantiate.ts");
 
 
+
+})();
 
 var __webpack_exports__FaustUI = __webpack_exports__.FaustUI;
 var __webpack_exports__instantiate = __webpack_exports__.instantiate;
